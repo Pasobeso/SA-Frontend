@@ -1,103 +1,148 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import useMe from "@/hooks/auth/useMe";
+import { localizeRole } from "@/lib/localization";
+import { Auth } from "@/lib/api/auth";
+import { toast } from "react-toastify";
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const router = useRouter();
+  const { me, isLoggedIn, refetch: refetchMe } = useMe();
+  const user = me?.me;
+  const claims = me?.claims;
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // Milliseconds since epoch for iat/exp, if present
+  const iatMs = claims?.iat ? claims.iat * 1000 : undefined;
+  const expMs = claims?.exp ? claims.exp * 1000 : undefined;
+
+  // Ticking "now" so the countdown updates live
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Elapsed since session start, Remaining until expiry
+  const { elapsedMs, remainingMs, expired } = useMemo(() => {
+    const elapsed = iatMs ? Math.max(0, now - iatMs) : undefined;
+    const remaining = expMs ? Math.max(0, expMs - now) : undefined;
+    const isExpired = expMs ? now >= expMs : false;
+    return { elapsedMs: elapsed, remainingMs: remaining, expired: isExpired };
+  }, [iatMs, expMs, now]);
+
+  function formatDuration(ms?: number) {
+    if (ms == null) return "-";
+    const s = Math.floor(ms / 1000);
+    const days = Math.floor(s / 86400);
+    const hours = Math.floor((s % 86400) / 3600);
+    const minutes = Math.floor((s % 3600) / 60);
+    const seconds = s % 60;
+    const parts: string[] = [];
+    if (days) parts.push(`${days} วัน`);
+    if (hours) parts.push(`${hours} ชม.`);
+    if (minutes) parts.push(`${minutes} นาที`);
+    parts.push(`${seconds} วินาที`);
+    return parts.join(" ");
+  }
+
+  async function onLogout() {
+    try {
+      await Auth.logout();
+      toast.success("ออกจากระบบสำเร็จ");
+    } catch (_) {
+      toast.error("เกิดข้อผิดพลาดในการออกจากระบบ");
+    } finally {
+      // Back to login
+      router.push("/login");
+      router.refresh();
+    }
+  }
+
+  async function onRefresh() {
+    try {
+      if (claims?.role === "Patient") {
+        await Auth.refreshPatient();
+      } else if (claims?.role === "Doctor") {
+        await Auth.refreshDoctor();
+      } else {
+        throw new Error(`Unknown role: ${claims?.role}`);
+      }
+      toast.success("ต่ออายุสำเร็จ");
+    } catch (_) {
+      toast.error("เกิดข้อผิดพลาดในการต่ออายุ");
+    } finally {
+      router.refresh();
+      refetchMe();
+    }
+  }
+
+  useEffect(() => {
+    if (isLoggedIn === false) {
+      router.push("/login");
+      router.refresh();
+    }
+  }, [isLoggedIn]);
+
+  return (
+    <div className="font-sans min-h-screen flex items-center justify-center bg-white">
+      <div className="w-full max-w-md space-y-4 p-6 rounded-2xl shadow-sm border">
+        <div className="text-xl font-semibold text-gray-900">
+          คุณได้ลงชื่อเข้าใช้แล้ว
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        <div className="grid grid-cols-3 gap-y-2 text-sm">
+          <div className="text-gray-500">เลขที่โรงพยาบาล</div>
+          <div className="col-span-2 font-medium">{user?.id ?? "-"}</div>
+
+          <div className="text-gray-500">ชื่อผู้ใช้</div>
+          <div className="col-span-2 font-medium">
+            {user ? `${user.first_name} ${user.last_name}` : "-"}
+          </div>
+
+          <div className="text-gray-500">ประเภทผู้ใช้</div>
+          <div className="col-span-2 font-medium">
+            {claims ? `${localizeRole(claims.role)}` : "-"}
+          </div>
+
+          <div className="text-gray-500">เซสชันเริ่มเมื่อ</div>
+          <div className="col-span-2">
+            <div className="font-medium">
+              {iatMs ? new Date(iatMs).toLocaleString("th-TH") : "-"}
+            </div>
+            <div className="text-xs text-gray-500">
+              ผ่านมาแล้ว: {formatDuration(elapsedMs)}
+            </div>
+          </div>
+
+          <div className="text-gray-500">เซสชันจะสิ้นสุดเมื่อ</div>
+          <div className="col-span-2">
+            <div className="font-medium">
+              {expMs ? new Date(expMs).toLocaleString("th-TH") : "-"}
+            </div>
+            <div
+              className={`text-xs ${
+                expired ? "text-red-600" : "text-gray-500"
+              }`}
+            >
+              {expired
+                ? `หมดอายุแล้ว: ${formatDuration(now - (expMs ?? now))}`
+                : `เหลืออีก: ${formatDuration(remainingMs)}`}
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-2 flex flex-col gap-1">
+          <Button className="w-full " onClick={onRefresh}>
+            ต่ออายุเซสชัน
+          </Button>
+          <Button className="w-full" variant={"destructive"} onClick={onLogout}>
+            ออกจากระบบ
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
