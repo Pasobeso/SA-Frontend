@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Users } from "@/lib/api/users";
+import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL;
 
@@ -19,6 +22,8 @@ export function RegisterForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
+  const router = useRouter();
+
   const [citizenId, setCitizenId] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -41,31 +46,18 @@ export function RegisterForm({
     try {
       setLoading(true);
 
-      const res = await fetch(`${baseUrl}/api/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          citizen_id: citizenId.trim(),
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          phone_number: phoneNumber.trim(),
-          password,
-        }),
+      const res = await Users.register({
+        citizen_id: citizenId,
+        first_name: firstName,
+        last_name: lastName,
+        phone_number: phoneNumber,
+        password: password,
       });
 
-      const data = await res.json().catch(() => ({}));
+      console.log(res.data);
 
-      if (!res.ok) {
-        setError(
-          data?.message ||
-            "สมัครสมาชิกไม่สำเร็จ กรุณาตรวจสอบข้อมูลแล้วลองใหม่"
-        );
-        return;
-      }
-
-      // สมัครสำเร็จ -> ไปหน้าเข้าสู่ระบบ
-      window.location.href = "/login";
+      router.push(`/login`);
+      toast.success("ลงทะเบียนสำเร็จ");
     } catch (err) {
       setError("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
     } finally {
