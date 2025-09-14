@@ -17,11 +17,11 @@ export namespace Users {
   }
 
   export interface RegisterUserModel {
-    citizen_id: String;
-    first_name: String;
-    last_name: String;
-    phone_number: String;
-    password: String;
+    citizen_id: string;
+    first_name: string;
+    last_name: string;
+    phone_number: string;
+    password: string;
   }
 
   export interface RegisterUserResponseModel {
