@@ -15,6 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Users } from "@/lib/api/users";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
+import { Dialog, DialogContent } from "./ui/dialog";
+import ShowHnDialog from "./show-hn-dialog";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL;
 
@@ -33,6 +35,11 @@ export function RegisterForm({
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [hospitalNumber, setHospitalNumber] = useState<number | undefined>(
+    undefined
+  );
+  const [showHnDialogOpen, setShowHnDialogOpen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,9 +61,10 @@ export function RegisterForm({
         password: password,
       });
 
-      console.log(res.data);
+      // router.push(`/login`);
 
-      router.push(`/login`);
+      setHospitalNumber(res.data?.hospital_number);
+      setShowHnDialogOpen(true);
       toast.success("ลงทะเบียนสำเร็จ");
     } catch (err) {
       setError("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
@@ -65,6 +73,11 @@ export function RegisterForm({
     }
   };
 
+  function onCloseShowHnDialog() {
+    router.push("/login");
+    router.refresh();
+  }
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
@@ -72,6 +85,12 @@ export function RegisterForm({
           <CardTitle>ลงทะเบียน</CardTitle>
           <CardDescription></CardDescription>
         </CardHeader>
+
+        <ShowHnDialog
+          hospitalNumber={hospitalNumber ?? 0}
+          open={showHnDialogOpen}
+          onClose={onCloseShowHnDialog}
+        ></ShowHnDialog>
 
         <CardContent>
           <form onSubmit={handleSubmit}>
