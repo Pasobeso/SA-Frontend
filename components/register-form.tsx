@@ -67,6 +67,7 @@ export function RegisterForm({
       // สมัครสำเร็จ -> ไปหน้าเข้าสู่ระบบ
       window.location.href = "/login";
     } catch (err) {
+      console.error("Register error:", err);
       setError("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
     } finally {
       setLoading(false);

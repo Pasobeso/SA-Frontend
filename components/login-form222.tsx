@@ -52,6 +52,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     localStorage.setItem("token", data.token);
     window.location.href = "/";
   } catch (err) {
+    console.error("Login error:", err);
     setError("Login failed. Please try again.");
   }
 };
@@ -99,7 +100,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               </Button>
 <div className="text-left text-sm">
   <span className="text-[#62748E]">ยังไม่มีบัญชี? </span>
-  <a href="#" className="underline underline-offset-4 text-[#155DFC]">
+  <a href="/register" className="underline underline-offset-4 text-[#155DFC]">
     ลงทะเบียนที่นี่
   </a>
 </div>
