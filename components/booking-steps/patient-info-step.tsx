@@ -28,7 +28,7 @@ export function PatientInfoStep({ data, onUpdate, onNext }: PatientInfoStepProps
         </Label>
         <Input
           id="patientName"
-          placeholder="ถ้าไม่มีโปรดใส่ -"
+          placeholder="ถ้าไม่มี โปรดใส่ -"
           value={data.patientName}
           onChange={(e) => onUpdate({ patientName: e.target.value })}
           className="mt-1"
