@@ -24,11 +24,11 @@ export function PatientInfoStep({ data, onUpdate, onNext }: PatientInfoStepProps
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <Label htmlFor="patientName" className="text-sm font-medium text-gray-700">
-          อายุคลินิก
+          อาการผิดปกติ
         </Label>
         <Input
           id="patientName"
-          placeholder="คำใบ่ ใบรสด -"
+          placeholder="ถ้าไม่มีโปรดใส่ -"
           value={data.patientName}
           onChange={(e) => onUpdate({ patientName: e.target.value })}
           className="mt-1"
@@ -58,7 +58,7 @@ export function PatientInfoStep({ data, onUpdate, onNext }: PatientInfoStepProps
       </div>
 
       <div>
-        <Label className="text-sm font-medium text-gray-700 mb-3 block">เจาะเลือดแล้วครั้งไหม</Label>
+        <Label className="text-sm font-medium text-gray-700 mb-3 block">เจาะเลือดแล้วหรือไม่</Label>
         <RadioGroup
           value={data.bloodTestAfter}
           onValueChange={(value) => onUpdate({ bloodTestAfter: value })}
@@ -86,7 +86,7 @@ export function PatientInfoStep({ data, onUpdate, onNext }: PatientInfoStepProps
       </div>
 
       <div>
-        <Label className="text-sm font-medium text-gray-700 mb-3 block">มีประวัติเสี่ยงต่อเอชไอวีใน 5 ปีที่ผ่านมาไหม</Label>
+        <Label className="text-sm font-medium text-gray-700 mb-3 block">มีประวัติกินยาต้านเกิน 5 นาทีหรือไม่</Label>
         <RadioGroup
           value={data.hivRiskLast5Years}
           onValueChange={(value) => onUpdate({ hivRiskLast5Years: value })}
@@ -108,7 +108,7 @@ export function PatientInfoStep({ data, onUpdate, onNext }: PatientInfoStepProps
       </div>
 
       <div>
-        <Label className="text-sm font-medium text-gray-700 mb-3 block">ผู้ประเมิน HIV หรือไม่</Label>
+        <Label className="text-sm font-medium text-gray-700 mb-3 block">คู่สมรสเป็น HIV หรือไม่</Label>
         <RadioGroup
           value={data.hivTestResult}
           onValueChange={(value) => onUpdate({ hivTestResult: value })}

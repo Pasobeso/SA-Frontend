@@ -24,8 +24,8 @@ const mockAppointments: Appointment[] = [
     patientId: "XO-069",
     date: "วันที่ 20 สิงหาคม 2569",
     time: "12:00 น.",
-    doctor: "นายแพทย์สรรชัย จงพาน",
-    department: "ติดตาม HIV-69",
+    doctor: "นายแพทย์เร่ร่อน จรพเน",
+    department: "ห้องตรวจ HIV-69",
     status: "confirmed",
   },
 ]
@@ -58,7 +58,7 @@ export default function AppointmentsPage() {
       {/* Sidebar */}
       <div className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 p-4">
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-800">ระบบ คุณหมอนิ่ง พลบรี</h2>
+          <h2 className="text-lg font-semibold text-gray-800">สวัสดี คุณร่อนเร่ พเนจร</h2>
         </div>
 
         <nav className="space-y-2">
