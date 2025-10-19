@@ -1,6 +1,6 @@
 "use client"
 import { useRouter } from "next/navigation";
-import { CalendarClock, Pill, LogOut } from "lucide-react"
+import { CalendarClock, Pill, LogOut, History } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -36,6 +36,11 @@ export function AppSidebar() {
       title: "จัดการการนัดหมาย",
       url: "/main",
       icon: CalendarClock,
+    },
+        {
+      title: "History",
+      url: "/history",
+      icon: History,
     },
     {
       title: "สั่งซื้อยา",
