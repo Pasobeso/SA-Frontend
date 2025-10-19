@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { ProductCard } from "@/components/product-card"
 import { AppSidebar } from "@/components/app-sidebar"
-import { MobileNav } from "@/components/mobile-nav"
 import { products } from "@/lib/data"
 import { useCartStore } from "@/lib/cart-store"
 import { AddressDialog } from "@/components/address-dialog"
@@ -40,7 +39,6 @@ export default function HomePage() {
             {/* Header */}
             <div className="flex items-center justify-between mb-6 md:mb-8">
               <div className="flex items-center gap-3">
-                <MobileNav onAddressClick={() => setAddressDialogOpen(true)} />
                 <h1 className="text-2xl md:text-3xl font-bold">สั่งซื้อยาให้ตนเอง</h1>
               </div>
               <Button
