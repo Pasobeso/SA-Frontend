@@ -117,54 +117,6 @@ return (
 
               {/* Sticky bottom summary + button */}
               <div className="sticky bottom-0 bg-white border-t p-4 space-y-3 pb-8">
-                <div>
-                    <h3 className="font-semibold mb-3 text-sm">เลือกวิธีการจัดส่ง</h3>
-                    <RadioGroup
-                      value={deliveryMethod}
-                      onValueChange={(value: "pickup" | "delivery") => setDeliveryMethod(value)}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="pickup" id="pickup" />
-                        <Label htmlFor="pickup" className="text-sm">
-                          รับที่โรงพยาบาล
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="delivery" id="delivery" />
-                        <Label htmlFor="delivery" className="text-sm">
-                          จัดส่งพัสดุ
-                        </Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-
-                  {deliveryMethod === "delivery" && (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label className="text-sm">ที่อยู่จัดส่ง</Label>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setAddressDialogOpen(true)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <Select value={selectedAddressId || ""} onValueChange={setSelectedAddress}>
-                        <SelectTrigger className="text-sm">
-                          <SelectValue placeholder="เลือกที่อยู่" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {addresses.map((address) => (
-                            <SelectItem key={address.id} value={address.id} className="text-sm">
-                              {address.address}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
                 <div className="flex justify-between text-sm">
                   <span>VAT 7%</span>
                   <span>{getVAT()} บาท</span>
