@@ -1,5 +1,6 @@
-import { Calendar, Home, Inbox, Search, Settings } from "lucide-react"
-
+"use client"
+import { useRouter } from "next/navigation";
+import { CalendarClock, Pill, LogOut } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -10,42 +11,44 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-
-// Menu items.
-const items = [
-  {
-    title: "Home",
-    url: "#",
-    icon: Home,
-  },
-  {
-    title: "Inbox",
-    url: "#",
-    icon: Inbox,
-  },
-  {
-    title: "Calendar",
-    url: "#",
-    icon: Calendar,
-  },
-  {
-    title: "Search",
-    url: "#",
-    icon: Search,
-  },
-  {
-    title: "Settings",
-    url: "#",
-    icon: Settings,
-  },
-]
+import { Auth } from "@/lib/api/auth";
+import { toast } from "react-toastify";
 
 export function AppSidebar() {
+  const router = useRouter();
+
+  async function onLogout() {
+    try {
+      await Auth.logout();
+      toast.success("ออกจากระบบสำเร็จ");
+    } catch (_) {
+      toast.error("เกิดข้อผิดพลาดในการออกจากระบบ");
+    } finally {
+      // Back to login
+      router.push("/login");
+      router.refresh();
+    }
+  }
+
+
+  const items = [
+    {
+      title: "จัดการการนัดหมาย",
+      url: "/main",
+      icon: CalendarClock,
+    },
+    {
+      title: "สั่งซื้อยา",
+      url: "/med",
+      icon: Pill,
+    },
+  ]
+
   return (
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>สวัสดีตุณ</SidebarGroupLabel>
+          <SidebarGroupLabel>สวัสดีคุณ</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
@@ -58,6 +61,14 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+
+              {/* ✅ Logout button */}
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={onLogout}>
+                  <LogOut />
+                  <span>ออกจากระบบ</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
