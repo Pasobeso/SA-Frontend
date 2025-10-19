@@ -68,7 +68,7 @@ export default function AppointmentsPage() {
           <div className="relative flex-1 p-4 md:p-8">
             {/* Mobile toggle button */}
             <SidebarTrigger />
-
+            
             {/* Header */}
             <div className="flex items-center justify-between mb-8 mt-4">
               <h1 className="text-3xl font-bold text-gray-900">การนัดพบแพทย์</h1>
