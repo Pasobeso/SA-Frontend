@@ -35,11 +35,10 @@ export default function HomePage() {
           {/* Sidebar Toggle (mobile) */}
           <SidebarTrigger />
 
-          <div className="max-w-7xl mx-auto">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6 md:mb-8">
+            <div className="flex items-center justify-between mb-8 mt-4">
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl md:text-3xl font-bold">สั่งซื้อยาให้ตนเอง</h1>
+                <h1 className="text-3xl font-bold text-gray-900">สั่งซื้อยาให้ตนเอง</h1>
               </div>
               <Button
                 className="bg-black hover:bg-black/90"
@@ -72,7 +71,6 @@ export default function HomePage() {
               {filteredProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
-            </div>
           </div>
         </div>
       </SidebarInset>
