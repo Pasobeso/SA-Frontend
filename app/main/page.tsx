@@ -76,6 +76,7 @@ export default function AppointmentsPage() {
           </div>
         </nav>
       </div>
+      {/* Sidebar */}
 
       {/* Main Content */}
       <div className="ml-64 p-8">
