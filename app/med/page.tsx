@@ -1,28 +1,47 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Search, ShoppingCart } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { ProductCard } from "@/components/product-card"
 import { AppSidebar } from "@/components/app-sidebar"
-import { products } from "@/lib/data"
 import { useCartStore } from "@/lib/cart-store"
 import { AddressDialog } from "@/components/address-dialog"
 import { CartSheet } from "@/components/cart-sheet"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
+import { Inventory } from "@/lib/api/inventory"
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [addressDialogOpen, setAddressDialogOpen] = useState(false)
   const [cartSheetOpen, setCartSheetOpen] = useState(false)
+
+  const [products, setProducts] = useState<any[]>([]) // will store fetched products
+  const [loading, setLoading] = useState(true)
+
   const cartItems = useCartStore((state) => state.items)
 
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await Inventory.getProducts() // ✅ get all products
+        setProducts(res.data || [])
+      } catch (err) {
+        console.error("Failed to fetch products:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchProducts()
+  }, [])
+  
   const filteredProducts = products.filter(
     (product) =>
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.code.toLowerCase().includes(searchQuery.toLowerCase()),
+      product.th_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.en_name?.toLowerCase().includes(searchQuery.toLowerCase()),
   )
+
 
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0)
 
@@ -67,11 +86,26 @@ export default function HomePage() {
             </div>
 
             {/* Product grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-              {filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-          </div>
+            {loading ? (
+              <p className="text-muted-foreground text-center">กำลังโหลดข้อมูลยา...</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                {filteredProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={{
+                    id: product.id,
+                    name: product.th_name,
+                    nameEn: product.en_name,
+                    code: product.id.toString(),
+                    price: product.unit_price,
+                    description: product.en_name,
+                    inStock: true,
+                  }}
+                />
+                ))}
+              </div>
+            )}
         </div>
       </SidebarInset>
 
