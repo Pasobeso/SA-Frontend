@@ -57,7 +57,6 @@ export function TimeSelectionStep({ data, onUpdate, onNext, onBack }: TimeSelect
 
   return (
     <div className="space-y-6">
-      <h2 className="font-semibold text-lg">3. เลือกช่วงเวลา / หมอ</h2>
 
       {loading ? (
         <p>กำลังโหลด slot...</p>
