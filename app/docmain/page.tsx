@@ -10,7 +10,7 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
+import { AppSidebar } from "@/components/app-docsidebar"
 
 interface Appointment {
   id: string
