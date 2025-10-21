@@ -84,13 +84,15 @@ export function TimeSelectionStep({ data, onUpdate, onNext, onBack }: TimeSelect
                       key={slot.id}
                       disabled={isFull}
                       onClick={() => handleSelect(slot)}
-                      className={`w-full ${
-                        selectedSlot === slot.id
-                          ? "bg-green-500 text-white"
-                          : isFull
-                          ? "bg-red-500 text-white"
-                          : "bg-white text-black border"
-                      }`}
+                      className={`w-full rounded-md border text-sm transition-all
+                        ${
+                          selectedSlot === slot.id
+                            ? "bg-green-100 text-green-700 border-green-400"
+                            : isFull
+                            ? "bg-red-100 text-red-600 border-red-300"
+                            : "bg-gray-50 text-gray-800 border-gray-300 hover:bg-gray-300"
+                        }`}
+
                     >
                       {label}
                     </Button>
