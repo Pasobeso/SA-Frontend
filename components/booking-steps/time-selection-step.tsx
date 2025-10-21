@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { Booking } from "@/lib/api/booking"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 
 interface TimeSelectionStepProps {
   data: any
@@ -25,6 +24,13 @@ export function TimeSelectionStep({ data, onUpdate, onNext, onBack }: TimeSelect
   const [slots, setSlots] = useState<SlotEntity[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedSlot, setSelectedSlot] = useState<string | null>(data.slot_id || null)
+
+  // 🧠 จำลองชื่อหมอ
+  const doctorNames: Record<number, string> = {
+    1: "นพ. สมชาย ใจดี",
+    2: "นพ. อนุชา แพทย์ดี",
+    3: "พญ. กานดา ศรีสุข",
+  }
 
   useEffect(() => {
     const fetchSlots = async () => {
@@ -67,7 +73,8 @@ export function TimeSelectionStep({ data, onUpdate, onNext, onBack }: TimeSelect
           {Object.entries(grouped).map(([doctorId, doctorSlots]) => (
             <div key={doctorId}>
               <p className="font-medium mb-3">
-                หมอรหัส: {doctorId}
+                หมอ:{" "}
+                {doctorNames[Number(doctorId)] || `หมอรหัส: ${doctorId}`}
               </p>
               <div className="grid grid-cols-5 gap-2">
                 {doctorSlots.map((slot) => {
@@ -91,7 +98,6 @@ export function TimeSelectionStep({ data, onUpdate, onNext, onBack }: TimeSelect
                             ? "bg-red-100 text-red-600 border-red-300"
                             : "bg-gray-50 text-gray-800 border-gray-300 hover:bg-gray-300"
                         }`}
-
                     >
                       {label}
                     </Button>
