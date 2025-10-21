@@ -9,8 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { useCartStore } from "@/lib/cart-store"
 import { AddressDialog } from "@/components/address-dialog"
-import { useToast } from "@/hooks/use-toast"
-import { Deliveries } from "@/lib/api/deliveries" // ✅ new import
+import { toast } from "react-toastify" // ✅ use react-toastify
 import { useAddressStore } from "@/lib/address-store"
 
 interface CartSheetProps {
@@ -19,7 +18,6 @@ interface CartSheetProps {
 }
 
 export function CartSheet({ open, onOpenChange }: CartSheetProps) {
-  const { toast } = useToast()
   const [addressDialogOpen, setAddressDialogOpen] = useState(false)
   const { addresses, loading, fetchAddresses } = useAddressStore()
 
@@ -33,35 +31,41 @@ export function CartSheet({ open, onOpenChange }: CartSheetProps) {
   const getVAT = useCartStore((state) => state.getVAT)
   const clearCart = useCartStore((state) => state.clearCart)
 
+  // ✅ Fetch addresses from store when sheet opens
   useEffect(() => {
     if (open) fetchAddresses()
   }, [open, fetchAddresses])
 
+  // ✅ Toastify checkout logic
   const handleCheckout = () => {
     if (items.length === 0) {
-      toast({
-        title: "ตะกร้าสินค้าว่าง",
-        description: "กรุณาเพิ่มสินค้าลงในตะกร้าก่อนสั่งซื้อ",
-        variant: "destructive",
+      toast.warning("ตะกร้าสินค้าว่าง กรุณาเพิ่มสินค้าก่อนสั่งซื้อ", {
+        position: "top-right",
+        autoClose: 2500,
+        theme: "colored",
       })
       return
     }
 
     if (deliveryMethod === "delivery" && !selectedAddressId) {
-      toast({
-        title: "กรุณาเลือกที่อยู่จัดส่ง",
-        description: "กรุณาเลือกที่อยู่สำหรับการจัดส่ง",
-        variant: "destructive",
+      toast.error("กรุณาเลือกที่อยู่จัดส่ง", {
+        position: "top-right",
+        autoClose: 2500,
+        theme: "colored",
       })
       return
     }
 
-    toast({
-      title: "สั่งซื้อสำเร็จ",
-      description: "คำสั่งซื้อของคุณได้รับการบันทึกแล้ว",
+    toast.success("สั่งซื้อสำเร็จ! คำสั่งซื้อของคุณได้รับการบันทึกแล้ว", {
+      position: "top-right",
+      autoClose: 2500,
+      theme: "colored",
     })
+
     clearCart()
-    onOpenChange(false)
+
+    // ✅ delay close slightly so toast shows first
+    setTimeout(() => onOpenChange(false), 0)
   }
 
   return (
@@ -81,7 +85,7 @@ export function CartSheet({ open, onOpenChange }: CartSheetProps) {
               </div>
             ) : (
               <>
-                {/* Items list */}
+                {/* 🧾 Items list */}
                 <div className="flex-1 overflow-y-auto mt-2 space-y-4 pr-1">
                   {items.map((item) => (
                     <div key={item.product.id} className="border rounded-lg p-4">
@@ -121,7 +125,7 @@ export function CartSheet({ open, onOpenChange }: CartSheetProps) {
                   ))}
                 </div>
 
-                {/* Sticky bottom summary */}
+                {/* 💰 Sticky bottom summary */}
                 <div className="sticky bottom-0 bg-white border-t p-4 space-y-3 pb-8">
                   <div>
                     <h3 className="font-semibold mb-3 text-sm">เลือกวิธีการจัดส่ง</h3>
@@ -142,46 +146,44 @@ export function CartSheet({ open, onOpenChange }: CartSheetProps) {
 
                   {deliveryMethod === "delivery" && (
                     <div>
-<div className="mb-3">
-  <div className="flex items-center justify-between mb-2">
-    <Label className="text-sm">ที่อยู่จัดส่ง</Label>
-    <Button
-      size="icon"
-      className="h-8 w-8 bg-white border text-black hover:bg-gray-100 rounded-md"
-      onClick={() => setAddressDialogOpen(true)}
-    >
-      <Plus className="h-4 w-4" />
-    </Button>
-  </div>
+                      <div className="mb-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-sm">ที่อยู่จัดส่ง</Label>
+                          <Button
+                            size="icon"
+                            className="h-8 w-8 bg-white border text-black hover:bg-gray-100 rounded-md"
+                            onClick={() => setAddressDialogOpen(true)}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
 
-  <Select
-    value={selectedAddressId?.toString() || ""}
-    onValueChange={setSelectedAddress}
-  >
-    <SelectTrigger className="text-sm w-full">
-      <SelectValue placeholder="เลือกที่อยู่" />
-    </SelectTrigger>
-    <SelectContent>
-      {addresses.length > 0 ? (
-        addresses.map((address) => (
-          <SelectItem
-            key={address.id}
-            value={address.id.toString()}
-            className="text-sm"
-          >
-            {address.recipient_name} — {address.street_address}, {address.city}
-          </SelectItem>
-        ))
-      ) : (
-        <SelectItem value="none" disabled>
-          ไม่มีที่อยู่จัดส่ง
-        </SelectItem>
-      )}
-    </SelectContent>
-  </Select>
-</div>
-
-
+                        <Select
+                          value={selectedAddressId?.toString() || ""}
+                          onValueChange={setSelectedAddress}
+                        >
+                          <SelectTrigger className="text-sm w-full">
+                            <SelectValue placeholder="เลือกที่อยู่" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {addresses.length > 0 ? (
+                              addresses.map((address) => (
+                                <SelectItem
+                                  key={address.id}
+                                  value={address.id.toString()}
+                                  className="text-sm"
+                                >
+                                  {address.recipient_name} — {address.street_address}, {address.city}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="none" disabled>
+                                ไม่มีที่อยู่จัดส่ง
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   )}
 
@@ -195,7 +197,11 @@ export function CartSheet({ open, onOpenChange }: CartSheetProps) {
                     <span>{getTotalPrice()} บาท</span>
                   </div>
 
-                  <Button className="w-full bg-green-600 hover:bg-green-700 mt-2" size="lg" onClick={handleCheckout}>
+                  <Button
+                    className="w-full bg-green-600 hover:bg-green-700 mt-2"
+                    size="lg"
+                    onClick={handleCheckout}
+                  >
                     สั่งยา
                   </Button>
                 </div>
