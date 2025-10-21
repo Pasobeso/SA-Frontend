@@ -13,11 +13,10 @@ interface DateSelectionStepProps {
 }
 
 export function DateSelectionStep({ data, onUpdate, onNext, onBack }: DateSelectionStepProps) {
-  const [currentMonth, setCurrentMonth] = useState(7) // August (0-indexed)
-  const [currentYear, setCurrentYear] = useState(2568)
-  const [selectedDate, setSelectedDate] = useState<number | null>(
-    data.selectedDate ? Number.parseInt(data.selectedDate.split(" ")[1]) : null,
-  )
+  const today = new Date()
+  const [currentMonth, setCurrentMonth] = useState(today.getMonth())
+  const [currentYear, setCurrentYear] = useState(today.getFullYear() + 543) // Buddhist calendar
+  const [selectedDate, setSelectedDate] = useState<number | null>(null)
 
   const thaiMonths = [
     "มกราคม",
@@ -37,33 +36,36 @@ export function DateSelectionStep({ data, onUpdate, onNext, onBack }: DateSelect
   const daysInMonth = new Date(currentYear - 543, currentMonth + 1, 0).getDate()
   const firstDayOfMonth = new Date(currentYear - 543, currentMonth, 1).getDay()
 
-  const days = []
+  const days: (number | null)[] = []
   const dayLabels = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
 
-  // Add empty cells for days before the first day of the month
-  for (let i = 0; i < firstDayOfMonth; i++) {
-    days.push(null)
-  }
-
-  // Add days of the month
-  for (let day = 1; day <= daysInMonth; day++) {
-    days.push(day)
-  }
+  // Add empty slots before first day
+  for (let i = 0; i < firstDayOfMonth; i++) days.push(null)
+  // Add days of current month
+  for (let day = 1; day <= daysInMonth; day++) days.push(day)
 
   const handleDateSelect = (day: number) => {
+    const selected = new Date(currentYear - 543, currentMonth, day)
+    const now = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    if (selected < now) return // block past selection
+
     setSelectedDate(day)
     const dateString = `${day} ${thaiMonths[currentMonth]} ${currentYear}`
-    onUpdate({ selectedDate: dateString })
+    onUpdate({ selectedSlot: undefined }) // clear slot before date change
+    onUpdate({ slot_id: "", selectedDate: dateString })
   }
 
   const handleNext = () => {
-    if (selectedDate) {
-      onNext()
-    }
+    if (selectedDate) onNext()
   }
 
   const navigateMonth = (direction: "prev" | "next") => {
+    // Prevent going back before today’s month/year
+    const thisMonth = today.getMonth()
+    const thisYear = today.getFullYear() + 543
+
     if (direction === "prev") {
+      if (currentYear === thisYear && currentMonth === thisMonth) return // prevent going before current month
       if (currentMonth === 0) {
         setCurrentMonth(11)
         setCurrentYear(currentYear - 1)
@@ -102,23 +104,33 @@ export function DateSelectionStep({ data, onUpdate, onNext, onBack }: DateSelect
             {label}
           </div>
         ))}
-        {days.map((day, index) => (
-          <div key={index} className="aspect-square">
-            {day && (
+        {days.map((day, index) => {
+          if (day === null) return <div key={index}></div>
+
+          const dateObj = new Date(currentYear - 543, currentMonth, day)
+          const isPast = dateObj < new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+          return (
+            <div key={index} className="aspect-square">
               <button
+                disabled={isPast}
                 onClick={() => handleDateSelect(day)}
                 className={`w-full h-full rounded-lg text-sm font-medium transition-colors ${
-                  selectedDate === day ? "bg-blue-600 text-white" : "hover:bg-gray-100 text-gray-700"
+                  isPast
+                    ? "text-gray-300 cursor-not-allowed"
+                    : selectedDate === day
+                    ? "bg-blue-600 text-white"
+                    : "hover:bg-gray-100 text-gray-700"
                 }`}
               >
                 {day}
               </button>
-            )}
-          </div>
-        ))}
+            </div>
+          )
+        })}
       </div>
 
-      {/* Selected Date Display */}
+      {/* Selected Date */}
       {selectedDate && (
         <div className="text-center py-4 bg-gray-50 rounded-lg">
           <p className="text-lg font-semibold text-gray-800">

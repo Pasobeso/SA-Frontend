@@ -1,105 +1,115 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { Booking } from "@/lib/api/booking"
 import { Button } from "@/components/ui/button"
-import type { BookingData } from "../appointment-booking-wizard"
+import { Card } from "@/components/ui/card"
 
 interface TimeSelectionStepProps {
-  data: BookingData
-  onUpdate: (updates: Partial<BookingData>) => void
+  data: any
+  onUpdate: (updates: any) => void
   onNext: () => void
   onBack: () => void
 }
 
-interface TimeSlot {
-  time: string
-  available: boolean
-  doctor: string
+interface SlotEntity {
+  id: string
+  doctor_id: number
+  start_time: string
+  end_time: string
+  current_appointment_count: number
+  max_appointment_count: number
 }
 
-const morningSlots: TimeSlot[] = [
-  { time: "9:00", available: true, doctor: "นายแพทย์สรรชัย จงพาน" },
-  { time: "9:30", available: true, doctor: "นายแพทย์สรรชัย จงพาน" },
-  { time: "10:00", available: false, doctor: "นายแพทย์สรรชัย จงพาน" },
-  { time: "10:30", available: false, doctor: "นายแพทย์สรรชัย จงพาน" },
-  { time: "11:00", available: true, doctor: "นายแพทย์สรรชัย จงพาน" },
-  { time: "11:30", available: false, doctor: "นายแพทย์สรรชัย จงพาน" },
-  { time: "12:00", available: false, doctor: "นายแพทย์สรรชัย จงพาน" },
-  { time: "12:30", available: false, doctor: "นายแพทย์สรรชัย จงพาน" },
-  { time: "13:00", available: false, doctor: "นายแพทย์สรรชัย จงพาน" },
-  { time: "13:30", available: false, doctor: "นายแพทย์สรรชัย จงพาน" },
-]
-
-const afternoonSlots: TimeSlot[] = [
-  { time: "9:00", available: true, doctor: "อีกแพทย์หนึ่ง" },
-  { time: "9:30", available: true, doctor: "อีกแพทย์หนึ่ง" },
-  { time: "10:00", available: false, doctor: "อีกแพทย์หนึ่ง" },
-  { time: "10:30", available: false, doctor: "อีกแพทย์หนึ่ง" },
-  { time: "11:00", available: true, doctor: "อีกแพทย์หนึ่ง" },
-  { time: "11:30", available: false, doctor: "อีกแพทย์หนึ่ง" },
-]
-
 export function TimeSelectionStep({ data, onUpdate, onNext, onBack }: TimeSelectionStepProps) {
-  // Use a unique slotId = doctor + time
-  const [selectedSlotId, setSelectedSlotId] = useState<string>(
-    data.selectedTime && data.selectedDoctor ? `${data.selectedDoctor}-${data.selectedTime}` : ""
-  )
+  const [slots, setSlots] = useState<SlotEntity[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(data.slot_id || null)
 
-  const handleTimeSelect = (slot: TimeSlot) => {
-    if (slot.available) {
-      const slotId = `${slot.doctor}-${slot.time}`
-      setSelectedSlotId(slotId)
-      onUpdate({ selectedTime: slot.time, selectedDoctor: slot.doctor })
+  useEffect(() => {
+    const fetchSlots = async () => {
+      try {
+        const res = await Booking.getAvailableSlots()
+        setSlots(res.data.slots)
+      } catch (err) {
+        console.error("Error fetching slots:", err)
+      } finally {
+        setLoading(false)
+      }
     }
+    fetchSlots()
+  }, [])
+
+  const handleSelect = (slot: SlotEntity) => {
+    setSelectedSlot(slot.id)
+    onUpdate({
+      slot_id: slot.id,
+      selectedSlot: slot,
+    })
   }
 
-  const handleNext = () => {
-    if (selectedSlotId) {
-      onNext()
-    }
-  }
-
-  const renderTimeSlots = (slots: TimeSlot[], title: string) => (
-    <div className="mb-6">
-      <h4 className="text-lg font-semibold text-gray-800 mb-4">{title}</h4>
-      <div className="grid grid-cols-4 gap-2">
-        {slots.map((slot) => {
-          const slotId = `${slot.doctor}-${slot.time}`
-          return (
-            <button
-              key={slotId}
-              onClick={() => handleTimeSelect(slot)}
-              disabled={!slot.available}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                selectedSlotId === slotId
-                  ? "bg-blue-600 text-white"
-                  : slot.available
-                    ? "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-                    : "bg-red-500 text-white cursor-not-allowed"
-              }`}
-            >
-              {slot.time}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
+  // ✅ Group slot ตาม doctor_id
+  const grouped = slots.reduce((acc: Record<number, SlotEntity[]>, slot) => {
+    if (!acc[slot.doctor_id]) acc[slot.doctor_id] = []
+    acc[slot.doctor_id].push(slot)
+    return acc
+  }, {})
 
   return (
     <div className="space-y-6">
-      {renderTimeSlots(morningSlots, "นายแพทย์สรรชัย จงพาน")}
-      {renderTimeSlots(afternoonSlots, "อีกแพทย์หนึ่ง")}
+      <h2 className="font-semibold text-lg">3. เลือกช่วงเวลา / หมอ</h2>
 
-      {/* Navigation Buttons */}
-      <div className="flex justify-between pt-4">
-        <Button variant="outline" onClick={onBack} className="px-6 py-2 bg-transparent">
+      {loading ? (
+        <p>กำลังโหลด slot...</p>
+      ) : slots.length === 0 ? (
+        <p>ไม่มี slot ว่างในขณะนี้</p>
+      ) : (
+        <div className="space-y-6">
+          {Object.entries(grouped).map(([doctorId, doctorSlots]) => (
+            <div key={doctorId}>
+              <p className="font-medium mb-3">
+                หมอรหัส: {doctorId}
+              </p>
+              <div className="grid grid-cols-5 gap-2">
+                {doctorSlots.map((slot) => {
+                  const isFull = slot.current_appointment_count >= slot.max_appointment_count
+                  const start = new Date(slot.start_time)
+                  const label = start.toLocaleTimeString("th-TH", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+
+                  return (
+                    <Button
+                      key={slot.id}
+                      disabled={isFull}
+                      onClick={() => handleSelect(slot)}
+                      className={`w-full ${
+                        selectedSlot === slot.id
+                          ? "bg-green-500 text-white"
+                          : isFull
+                          ? "bg-red-500 text-white"
+                          : "bg-white text-black border"
+                      }`}
+                    >
+                      {label}
+                    </Button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-6 flex justify-between">
+        <Button variant="outline" onClick={onBack}>
           ← กลับ
         </Button>
         <Button
-          onClick={handleNext}
-          disabled={!selectedSlotId}
-          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg disabled:opacity-50"
+          onClick={onNext}
+          disabled={!selectedSlot}
+          className="bg-green-600 hover:bg-green-700 text-white"
         >
           ต่อไป →
         </Button>
