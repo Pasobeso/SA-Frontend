@@ -239,10 +239,6 @@ export default function AppointmentsPage() {
             <h1 className="text-3xl font-bold text-gray-900">
               การนัดพบผู้ป่วย
             </h1>
-            <Button className="bg-black hover:bg-gray-800 text-white px-6 py-2 rounded-lg flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              เพิ่มการนัดหมาย
-            </Button>
           </div>
 
           {loading ? (
