@@ -18,7 +18,7 @@ interface ConfirmationStepProps {
 export function ConfirmationStep({ data, onConfirm, onBack }: ConfirmationStepProps) {
   const formattedDate =
     data.appointment_time &&
-    new Date(data.appointment_time).toLocaleDateString("th-TH", {
+    new Date(data.appointment_time+'Z').toLocaleDateString("th-TH", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -26,7 +26,7 @@ export function ConfirmationStep({ data, onConfirm, onBack }: ConfirmationStepPr
 
   const formattedTime =
     data.appointment_time &&
-    new Date(data.appointment_time).toLocaleTimeString("th-TH", {
+    new Date(data.appointment_time+'Z').toLocaleTimeString("th-TH", {
       hour: "2-digit",
       minute: "2-digit",
     })
