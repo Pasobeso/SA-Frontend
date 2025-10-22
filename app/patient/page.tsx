@@ -1,44 +1,70 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardHeader } from "@/components/ui/card"
-import { Plus } from "lucide-react"
-import { AppointmentBookingWizard } from "@/components/appointment-booking-wizard"
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Plus } from "lucide-react";
+import { AppointmentBookingWizard } from "@/components/appointment-booking-wizard";
 import {
   SidebarProvider,
   SidebarInset,
   SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { Booking } from "@/lib/api/booking"
-import { useToast } from "@/hooks/use-toast"
+} from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { Booking } from "@/lib/api/booking";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AppointmentsPage() {
-  const { toast } = useToast()
-  const [isBookingOpen, setIsBookingOpen] = useState(false)
-  const [appointments, setAppointments] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { toast } = useToast();
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // ---- Time helpers: parse "naive UTC" -> Date(UTC) then format in Asia/Bangkok ----
+  const parseUtcNaive = (input: string) => {
+    if (!input) return new Date(NaN);
+    const s = input.replace(" ", "T"); // support "YYYY-MM-DD HH:mm:ss"
+    const hasTZ = /[zZ]|[+\-]\d{2}:\d{2}$/.test(s);
+    return new Date(hasTZ ? s : `${s}Z`);
+  };
+
+  const formatBangkokDate = (d: Date) =>
+    new Intl.DateTimeFormat("th-TH", {
+      timeZone: "Asia/Bangkok",
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(d);
+
+  const formatBangkokTime = (d: Date) =>
+    new Intl.DateTimeFormat("th-TH", {
+      timeZone: "Asia/Bangkok",
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+      .format(d)
+      .replace(/\./g, ":"); // เผื่อบางเบราว์เซอร์ใช้จุดเป็นตัวคั่น
 
   // ✅ Load appointments from API
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
-        const res = await Booking.getMyAppointments()
-        if (!res.data) throw new Error("No data returned")
-        setAppointments(res.data.schedules)
+        const res = await Booking.getMyAppointments();
+        if (!res.data) throw new Error("No data returned");
+        setAppointments(res.data.schedules);
       } catch (err) {
         toast({
           title: "ไม่สามารถโหลดข้อมูลการนัดหมายได้",
           variant: "destructive",
-        })
+        });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
-    fetchAppointments()
-  }, [])
-
+    };
+    fetchAppointments();
+  }, []);
 
   // ✅ Add new appointment
   const handleNewAppointment = async (appointmentData: any) => {
@@ -50,26 +76,26 @@ export default function AppointmentsPage() {
         patient_is_missed_medication: appointmentData.is_missed_med,
         patient_is_overdue_medication: appointmentData.is_overdue,
         patient_is_partner_hiv_positive: appointmentData.is_partner_positive,
-      })
-      toast({ title: "เพิ่มการนัดหมายสำเร็จ" })
-      setIsBookingOpen(false)
-      const res = await Booking.getMyAppointments()
-      setAppointments(res.data?.schedules ?? [])
+      });
+      toast({ title: "เพิ่มการนัดหมายสำเร็จ" });
+      setIsBookingOpen(false);
+      const res = await Booking.getMyAppointments();
+      setAppointments(res.data?.schedules ?? []);
     } catch (err) {
-      toast({ title: "ไม่สามารถเพิ่มการนัดหมายได้", variant: "destructive" })
+      toast({ title: "ไม่สามารถเพิ่มการนัดหมายได้", variant: "destructive" });
     }
-  }
+  };
 
   // ✅ Cancel appointment
   const handleCancel = async (appointmentId: string) => {
     try {
-      await Booking.deleteAppointment(appointmentId)
-      toast({ title: "ยกเลิกการนัดหมายสำเร็จ" })
-      setAppointments((prev) => prev.filter((a) => a.id !== appointmentId))
+      await Booking.deleteAppointment(appointmentId);
+      toast({ title: "ยกเลิกการนัดหมายสำเร็จ" });
+      setAppointments((prev) => prev.filter((a) => a.id !== appointmentId));
     } catch {
-      toast({ title: "ไม่สามารถยกเลิกได้", variant: "destructive" })
+      toast({ title: "ไม่สามารถยกเลิกได้", variant: "destructive" });
     }
-  }
+  };
 
   return (
     <SidebarProvider>
@@ -94,41 +120,64 @@ export default function AppointmentsPage() {
             <p className="text-gray-500">ยังไม่มีการนัดหมาย</p>
           ) : (
             <div className="space-y-4">
-              {appointments.map((appointment) => (
-                <Card key={appointment.id} className="bg-white border border-gray-200 rounded-lg">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1">
-                          หมายเลขนัดหมาย {appointment.id}
-                        </p>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                          {new Date(appointment.start_time).toLocaleDateString("th-TH")}
-                        </h3>
-                        <p className="text-xl font-bold text-gray-900 mb-2">
-                          {new Date(appointment.start_time).toLocaleTimeString("th-TH", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
-                        <p className="text-sm text-gray-600 mb-1">สถานะ: {appointment.status}</p>
-                      </div>
-<div className="flex gap-2">
-  <Button
-    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
-    onClick={() => handleCancel(appointment.id)}
-  >
-    ยกเลิก
-  </Button>
-  <Button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md">
-    รายละเอียด
-  </Button>
-</div>
+              {appointments
+                .slice()
+                .sort(
+                  (a, b) =>
+                    parseUtcNaive(a.start_time).getTime() -
+                    parseUtcNaive(b.start_time).getTime(),
+                )
+                .map((appointment) => {
+                  const start = parseUtcNaive(appointment.start_time);
+                  const end = appointment.end_time
+                    ? parseUtcNaive(appointment.end_time)
+                    : null;
 
-                    </div>
-                  </CardHeader>
-                </Card>
-              ))}
+                  return (
+                    <Card
+                      key={appointment.id}
+                      className="bg-white border border-gray-200 rounded-lg"
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">
+                              หมายเลขนัดหมาย {appointment.id}
+                            </p>
+
+                            {/* วันที่แบบไทย */}
+                            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                              {formatBangkokDate(start)}
+                            </h3>
+
+                            {/* เวลาแบบไทย (รองรับมี end_time/ไม่มี) */}
+                            <p className="text-xl font-bold text-gray-900 mb-2">
+                              {end
+                                ? `${formatBangkokTime(start)} - ${formatBangkokTime(end)}`
+                                : formatBangkokTime(start)}
+                            </p>
+
+                            <p className="text-sm text-gray-600 mb-1">
+                              สถานะ: {appointment.status}
+                            </p>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <Button
+                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
+                              onClick={() => handleCancel(appointment.id)}
+                            >
+                              ยกเลิก
+                            </Button>
+                            <Button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md">
+                              รายละเอียด
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                    </Card>
+                  );
+                })}
             </div>
           )}
 
@@ -141,5 +190,5 @@ export default function AppointmentsPage() {
         </div>
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }
