@@ -53,7 +53,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>สวัสดีคุณ</SidebarGroupLabel>
+          <SidebarGroupLabel>สวัสดี</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
