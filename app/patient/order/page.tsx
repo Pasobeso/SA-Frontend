@@ -243,12 +243,32 @@ const handleConfirmPayment = async () => {
                               <span className="font-semibold">วันที่สั่งซื้อ</span>{" "}
                               {new Date(o.order.created_at).toLocaleString("th-TH")}
                             </p>
-                            <p className="text-sm">
-                              <span className="font-semibold">สถานะระบบ:</span>{" "}
-                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                {o.order.status}
-                              </span>
-                            </p>
+<p className="text-sm">
+  <span className="font-semibold">สถานะระบบ:</span>{" "}
+  <span
+    className={`px-2 py-0.5 rounded-full text-xs font-semibold tracking-wide
+      ${
+        o.order.status === "PENDING"
+          ? "bg-yellow-100 text-yellow-800"
+          : o.order.status === "RESERVED"
+          ? "bg-blue-100 text-blue-800"
+          : o.order.status === "PAYMENT_PENDING"
+          ? "bg-orange-100 text-orange-800"
+          : o.order.status === "DELIVERY_PENDING"
+          ? "bg-green-100 text-green-800"
+          : o.order.status === "DELIVERED"
+          ? "bg-cyan-100 text-cyan-800"
+          : o.order.status === "COMPLETED"
+          ? "bg-gray-100 text-gray-800"
+          : o.order.status === "REJECTED"
+          ? "bg-red-100 text-red-800"
+          : "bg-gray-200 text-gray-700"
+      }`}
+  >
+    {o.order.status}
+  </span>
+</p>
+
                           </div>
 
                           {/* Order items */}
