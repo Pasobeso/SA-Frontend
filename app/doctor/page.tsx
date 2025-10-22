@@ -22,6 +22,7 @@ export default function AppointmentsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   // ---- Time helpers: parse "naive UTC" -> Date(UTC) then format in Asia/Bangkok ----
   const parseUtcNaive = (input: string) => {
@@ -50,32 +51,182 @@ export default function AppointmentsPage() {
       .format(d)
       .replace(/\./g, ":");
 
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      try {
-        const res = await Booking.getDoctorAppointments();
-        if (!res.data) throw new Error("No data returned");
-        setAppointments(res.data.schedules);
-      } catch (err) {
-        console.error(err);
-        toast({
-          title: "ไม่สามารถโหลดข้อมูลการนัดหมายได้",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAppointments();
-  }, []);
-
-  const handlePrescribe = (appointmentId: string) => {
-    router.push(`/doctor/med/${appointmentId}`);
+  // ---- โหลดรายการนัด ----
+  const fetchAppointments = async () => {
+    try {
+      const res = await Booking.getDoctorAppointments();
+      if (!res.data) throw new Error("No data returned");
+      setAppointments(res.data.schedules ?? []);
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "ไม่สามารถโหลดข้อมูลการนัดหมายได้",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchAppointments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleViewDetail = (appointment: any) => {
     setSelectedAppointment(appointment);
     setIsModalOpen(true);
+  };
+
+  // ---- แปลงสถานะให้เป็นรูปแบบมาตรฐาน ----
+  type CanonicalStatus =
+    | "WAITING"
+    | "READY"
+    | "WAITING_FOR_PRESCRIPTION"
+    | "COMPLETED";
+  const normalizeStatus = (s: any): CanonicalStatus => {
+    const x = String(s || "")
+      .toUpperCase()
+      .replace(/[\s\-_]/g, "");
+    if (x === "READY") return "READY";
+    if (x === "WAITINGFORPRESCRIPTION") return "WAITING_FOR_PRESCRIPTION";
+    if (x === "COMPLETED") return "COMPLETED";
+    // ค่าเริ่มต้น/กรณีอื่น ๆ ถือเป็น WAITING
+    // รองรับชื่ออย่าง BOOKED / SCHEDULED / PENDING ด้วย
+    if (["WAITING", "BOOKED", "SCHEDULED", "PENDING", "CONFIRMED"].includes(x))
+      return "WAITING";
+    return "WAITING";
+  };
+
+  const patchLocalStatus = (id: string, status: CanonicalStatus) => {
+    setAppointments((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, status } : a)),
+    );
+  };
+
+  // ---- Actions: เปลี่ยนสถานะตามลำดับ ----
+  const toReady = async (id: string) => {
+    setUpdatingId(id);
+    toast({ title: "กำลังอัปเดต...", description: "ไปสถานะ Ready" });
+    try {
+      await Booking.markAsReady(id);
+      patchLocalStatus(id, "READY");
+      toast({ title: "อัปเดตสำเร็จ", description: "สถานะ: Ready" });
+    } catch {
+      toast({ title: "อัปเดตไม่สำเร็จ", variant: "destructive" });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const toWaitingForPrescription = async (id: string) => {
+    setUpdatingId(id);
+    toast({
+      title: "กำลังอัปเดต...",
+      description: "ไปสถานะ Waiting for Prescription",
+    });
+    try {
+      await Booking.markAsWaitingForPrescription(id);
+      patchLocalStatus(id, "WAITING_FOR_PRESCRIPTION");
+      toast({
+        title: "อัปเดตสำเร็จ",
+        description: "สถานะ: Waiting for Prescription",
+      });
+    } catch {
+      toast({ title: "อัปเดตไม่สำเร็จ", variant: "destructive" });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  // สั่งยา (mock) → Completed
+  const mockPrescribeToCompleted = async (id: string) => {
+    setUpdatingId(id);
+    toast({ title: "สั่งยา (mock)...", description: "กำลังปิดเคสนี้" });
+    try {
+      await Booking.markAsCompleted(id);
+      patchLocalStatus(id, "COMPLETED");
+      toast({ title: "เสร็จสิ้น", description: "สถานะ: Completed" });
+    } catch {
+      toast({ title: "อัปเดตไม่สำเร็จ", variant: "destructive" });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  // ---- ปุ่มหลักให้ตรงกับสถานะ ----
+  const PrimaryAction = ({ appt }: { appt: any }) => {
+    const status = normalizeStatus(appt.status);
+
+    if (status === "WAITING") {
+      return (
+        <Button
+          disabled={updatingId === appt.id}
+          onClick={() => toReady(appt.id)}
+          className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-md"
+        >
+          Ready
+        </Button>
+      );
+    }
+
+    if (status === "READY") {
+      return (
+        <Button
+          disabled={updatingId === appt.id}
+          onClick={() => toWaitingForPrescription(appt.id)}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md"
+        >
+          Waiting for Prescription
+        </Button>
+      );
+    }
+
+    if (status === "WAITING_FOR_PRESCRIPTION") {
+      return (
+        <Button
+          disabled={updatingId === appt.id}
+          onClick={() => mockPrescribeToCompleted(appt.id)}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+        >
+          สั่งยา (mock)
+        </Button>
+      );
+    }
+
+    // COMPLETED → ไม่มีปุ่มหลัก
+    return (
+      <Button
+        disabled
+        className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md cursor-not-allowed"
+      >
+        Completed
+      </Button>
+    );
+  };
+
+  // ---- แท็กสถานะแบบสีอ่านง่าย ----
+  const StatusBadge = ({ status }: { status: any }) => {
+    const s = normalizeStatus(status);
+    const style: Record<CanonicalStatus, string> = {
+      WAITING: "bg-yellow-100 text-yellow-800",
+      READY: "bg-amber-100 text-amber-800",
+      WAITING_FOR_PRESCRIPTION: "bg-indigo-100 text-indigo-800",
+      COMPLETED: "bg-green-100 text-green-800",
+    };
+    const label: Record<CanonicalStatus, string> = {
+      WAITING: "Waiting",
+      READY: "Ready",
+      WAITING_FOR_PRESCRIPTION: "Waiting for Prescription",
+      COMPLETED: "Completed",
+    };
+    return (
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${style[s]}`}
+      >
+        {label[s]}
+      </span>
+    );
   };
 
   return (
@@ -119,18 +270,19 @@ export default function AppointmentsPage() {
                       className="bg-white border border-gray-200 rounded-lg"
                     >
                       <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-start justify-between gap-4">
                           <div>
-                            <p className="text-sm text-gray-600 mb-1">
-                              หมายเลขนัดหมาย {appointment.id}
-                            </p>
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="text-sm text-gray-600">
+                                หมายเลขนัดหมาย {appointment.id}
+                              </p>
+                              <StatusBadge status={appointment.status} />
+                            </div>
 
-                            {/* วันที่แบบไทย */}
                             <h3 className="text-lg font-semibold text-gray-900 mb-1">
                               วันที่ {formatBangkokDate(start)}
                             </h3>
 
-                            {/* เวลาแบบไทย (รองรับช่วงเวลา) */}
                             <p className="text-xl font-bold text-gray-900 mb-2">
                               {end
                                 ? `${formatBangkokTime(start)} - ${formatBangkokTime(end)}`
@@ -145,12 +297,8 @@ export default function AppointmentsPage() {
                             >
                               รายละเอียด
                             </Button>
-                            <Button
-                              onClick={() => handlePrescribe(appointment.id)}
-                              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
-                            >
-                              สั่งยา
-                            </Button>
+
+                            <PrimaryAction appt={appointment} />
                           </div>
                         </div>
                       </CardHeader>
