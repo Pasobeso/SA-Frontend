@@ -89,21 +89,24 @@ export default function MedicineOrdersPage() {
     fetchOrders()
   }, [toast])
 
-  const mapStatus = (status: string): OrderStatus => {
-    switch (status) {
-      case "waiting_payment":
-      case "pending":
-        return "pay"
-      case "preparing":
-        return "prepare"
-      case "shipping":
-        return "send"
-      case "completed":
-        return "completed"
-      default:
-        return "prepare"
-    }
+// 🔹 Map backend status → frontend tab
+const mapStatus = (status: string): OrderStatus => {
+  switch (status.toUpperCase()) {
+    case "WAITING_PAYMENT":
+    case "PENDING":
+    case "REJECTED": // ✅ add this line
+      return "pay"
+    case "PREPARING":
+      return "prepare"
+    case "SHIPPING":
+      return "send"
+    case "COMPLETED":
+      return "completed"
+    default:
+      return "prepare"
   }
+}
+
 
   const filteredOrders = orders.filter(
     (o) => mapStatus(o.order.status) === activeTab
@@ -262,14 +265,16 @@ export default function MedicineOrdersPage() {
 
                           {/* Status / Action */}
                           <div className="flex items-center justify-between border-t pt-4">
-                            {mapStatus(o.order.status) === "pay" && (
-                              <Button
-                                className="bg-green-600 hover:bg-green-700"
-                                onClick={() => handleOpenPayment(o.order.id)}
-                              >
-                                ชำระด้วย PromptPay
-                              </Button>
-                            )}
+{mapStatus(o.order.status) === "pay" && (
+  <div className="flex justify-end w-full">
+    <Button
+      className="bg-green-600 hover:bg-green-700"
+      onClick={() => handleOpenPayment(o.order.id)}
+    >
+      ชำระด้วย PromptPay
+    </Button>
+  </div>
+)}
 
                             {mapStatus(o.order.status) === "prepare" && (
                               <p className="text-sm text-green-600">
