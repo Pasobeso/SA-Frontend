@@ -135,47 +135,53 @@ const mapStatus = (status: string): OrderStatus => {
 
   // Payment Pending → Delivery Pending
 const handleConfirmPayment = async () => {
-  if (!selectedOrderId) return
-  setIsPaying(true)
+  if (!selectedOrderId) {
+    console.warn("⚠️ No order selected — cannot confirm payment.");
+    return;
+  }
+
+  console.log("🟢 Starting payment confirmation for order:", selectedOrderId);
+  setIsPaying(true);
 
   try {
-    // 1) สร้าง payment (ใช้ qr_payment)
-    const paymentRes = await Orders.createPayment(selectedOrderId, "qr_payment")
+    // 1️⃣ Fetch existing payments
+    const paymentRes = await Orders.getPaymentByOrderId(selectedOrderId);
+    const paymentId = paymentRes.data?.[0]?.id;
 
-    // ✅ ปลอดภัย: extract id ด้วย type narrowing
-    const paymentObj = paymentRes?.data?.payment as
-      | { id?: number | string }
-      | undefined
-    const paymentId = paymentObj?.id
+    console.log("✅ Extracted paymentId:", paymentId);
 
-    if (!paymentId) throw new Error("Missing payment id")
+    if (!paymentId) {
+      toast.error("ไม่พบรหัสการชำระเงิน", { position: "top-right", autoClose: 2500 });
+      return;
+    }
 
-    // 2) mock pay (ไม่มี body) + แปลงเป็น string
-    await Orders.mockPay(paymentId.toString())
+    // 2️⃣ Simulate payment success
+    console.log("💳 Mock paying paymentId:", paymentId);
+    await Orders.mockPay(paymentId);
 
-    // 3) โหลดรายการใหม่
-    await fetchAndEnrichOrders()
-    setActiveTab("prepare")
+    // 3️⃣ Refresh and update
+    await fetchAndEnrichOrders();
+    setActiveTab("prepare");
 
-    // ✅ ใช้ react-toastify (ไม่ใช่ shadcn)
-    toast.success(`✅ ชำระเงินสำเร็จ! คำสั่งซื้อ #${selectedOrderId} กำลังเตรียมการจัดส่ง`, {
-      position: "top-right",
-      autoClose: 2500,
-    })
+    // 4️⃣ Notify and reset
+    toast.success(
+      `✅ ชำระเงินสำเร็จ! คำสั่งซื้อ #${selectedOrderId} กำลังเตรียมการจัดส่ง`,
+      { position: "top-right", autoClose: 2500 }
+    );
 
-    setShowPaymentModal(false)
-    setSelectedOrderId(null)
+    setShowPaymentModal(false);
+    setSelectedOrderId(null);
   } catch (err) {
-    console.error("❌ Payment failed:", err)
-    toast.error("❌ เกิดข้อผิดพลาดในการชำระเงิน โปรดลองอีกครั้ง", {
+    console.error("❌ Payment failed:", err);
+    toast.error("เกิดข้อผิดพลาดในการชำระเงิน โปรดลองอีกครั้ง", {
       position: "top-right",
       autoClose: 2500,
-    })
+    });
   } finally {
-    setIsPaying(false)
+    setIsPaying(false);
+    console.log("🟣 Payment process finished.");
   }
-}
-
+};
 
 
   return (

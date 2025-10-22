@@ -77,4 +77,21 @@ export namespace Orders {
     const res = await client.get(`${ORDERS_URL}/orders`)
     return res.data as ApiResponse<GetOrderRes[]>
   }
+
+  // ✅ Get payment by order id
+export async function getPaymentByOrderId(orderId: number) {
+  const res = await client.get(`${ORDERS_URL}/patients/orders/${orderId}/payment`)
+  return res.data as ApiResponse<{
+    data: {
+      id: string
+      order_id: number
+      amount: number
+      provider: string
+      status: string
+      created_at: string
+      updated_at: string
+    }[]
+  }>
+}
+
 }

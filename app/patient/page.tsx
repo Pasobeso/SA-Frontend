@@ -13,14 +13,17 @@ import {
 import { AppSidebar } from "@/components/app-sidebar"
 import { Booking } from "@/lib/api/booking"
 import { useToast } from "@/hooks/use-toast"
+import { AppointmentDetailModal } from "@/components/AppointmentDetailModal"
 
 export default function AppointmentsPage() {
   const { toast } = useToast()
   const [isBookingOpen, setIsBookingOpen] = useState(false)
   const [appointments, setAppointments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // ✅ Load appointments from API
+  // ✅ Load appointments
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
@@ -28,6 +31,7 @@ export default function AppointmentsPage() {
         if (!res.data) throw new Error("No data returned")
         setAppointments(res.data.schedules)
       } catch (err) {
+        console.error("❌ Error loading appointments:", err)
         toast({
           title: "ไม่สามารถโหลดข้อมูลการนัดหมายได้",
           variant: "destructive",
@@ -37,10 +41,9 @@ export default function AppointmentsPage() {
       }
     }
     fetchAppointments()
-  }, [])
+  }, [toast])
 
-
-  // ✅ Add new appointment
+  // ✅ Create appointment
   const handleNewAppointment = async (appointmentData: any) => {
     try {
       await Booking.addAppointment({
@@ -53,9 +56,11 @@ export default function AppointmentsPage() {
       })
       toast({ title: "เพิ่มการนัดหมายสำเร็จ" })
       setIsBookingOpen(false)
+
       const res = await Booking.getMyAppointments()
       setAppointments(res.data?.schedules ?? [])
     } catch (err) {
+      console.error("❌ Error adding appointment:", err)
       toast({ title: "ไม่สามารถเพิ่มการนัดหมายได้", variant: "destructive" })
     }
   }
@@ -66,9 +71,16 @@ export default function AppointmentsPage() {
       await Booking.deleteAppointment(appointmentId)
       toast({ title: "ยกเลิกการนัดหมายสำเร็จ" })
       setAppointments((prev) => prev.filter((a) => a.id !== appointmentId))
-    } catch {
+    } catch (err) {
+      console.error("❌ Error cancelling appointment:", err)
       toast({ title: "ไม่สามารถยกเลิกได้", variant: "destructive" })
     }
+  }
+
+  // ✅ View details
+  const handleViewDetail = (appointment: any) => {
+    setSelectedAppointment(appointment)
+    setIsModalOpen(true)
   }
 
   return (
@@ -95,7 +107,10 @@ export default function AppointmentsPage() {
           ) : (
             <div className="space-y-4">
               {appointments.map((appointment) => (
-                <Card key={appointment.id} className="bg-white border border-gray-200 rounded-lg">
+                <Card
+                  key={appointment.id}
+                  className="bg-white border border-gray-200 rounded-lg"
+                >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div>
@@ -103,28 +118,37 @@ export default function AppointmentsPage() {
                           หมายเลขนัดหมาย {appointment.id}
                         </p>
                         <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                          {new Date(appointment.start_time).toLocaleDateString("th-TH")}
+                          วันที่{" "}
+                          {new Date(appointment.start_time).toLocaleDateString(
+                            "th-TH",
+                            { day: "numeric", month: "long", year: "numeric" }
+                          )}
                         </h3>
                         <p className="text-xl font-bold text-gray-900 mb-2">
-                          {new Date(appointment.start_time).toLocaleTimeString("th-TH", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {new Date(appointment.start_time).toLocaleTimeString(
+                            "th-TH",
+                            { hour: "2-digit", minute: "2-digit" }
+                          )}
                         </p>
-                        <p className="text-sm text-gray-600 mb-1">สถานะ: {appointment.status}</p>
+                        <p className="text-sm text-gray-600">
+                          สถานะ: {appointment.status}
+                        </p>
                       </div>
-<div className="flex gap-2">
-  <Button
-    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
-    onClick={() => handleCancel(appointment.id)}
-  >
-    ยกเลิก
-  </Button>
-  <Button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md">
-    รายละเอียด
-  </Button>
-</div>
 
+                      <div className="flex gap-2">
+                        <Button
+                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md"
+                          onClick={() => handleViewDetail(appointment)}
+                        >
+                          รายละเอียด
+                        </Button>
+                        <Button
+                          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
+                          onClick={() => handleCancel(appointment.id)}
+                        >
+                          ยกเลิก
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                 </Card>
@@ -132,7 +156,14 @@ export default function AppointmentsPage() {
             </div>
           )}
 
-          {/* Booking Wizard Modal */}
+          {/* ✅ Appointment Detail Modal (same as doctor page) */}
+          <AppointmentDetailModal
+            open={isModalOpen}
+            onOpenChange={setIsModalOpen}
+            data={selectedAppointment}
+          />
+
+          {/* ✅ Booking Wizard Modal */}
           <AppointmentBookingWizard
             isOpen={isBookingOpen}
             onClose={() => setIsBookingOpen(false)}

@@ -5,7 +5,7 @@ import { ApiResponse } from "./models"
 
 export namespace Payments {
   // 1️⃣ Create a payment for a specific order (PromptPay)
-  export async function createPayment(orderId: number, provider: string = "PROMPTPAY") {
+  export async function createPayment(orderId: number, provider: string = "qr_payment") {
 
     const res = await client.post(
       `${ORDERS_URL}/patients/orders/${orderId}/payment`,
