@@ -33,19 +33,19 @@ export function AppSidebar() {
 
   const items = [
     {
+      title: "นัดหมาย",
+      url: "/patient",
+      icon: CalendarClock,
+    },
+    {
       title: "จัดการการนัดหมาย",
-      url: "/doctor",
-      icon: CalendarRange,
-    },
-    {
-      title: "สั่งซื้อยา",
-      url: "/doctor/med",
-      icon: Pill,
-    },
-    {
-      title: "จัดการเวลานัดหมาย",
       url: "/doctor/appointment",
       icon: CalendarClock,
+    },
+    {
+      title: "สถานะการสั่งยา",
+      url: "/doctor/order",
+      icon: History,
     },
   ]
 
