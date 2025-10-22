@@ -9,12 +9,11 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-docsidebar"
-import { useToast } from "@/hooks/use-toast"
-import { Orders, GetOrderRes } from "@/lib/api/orders"
+import { Deliveries } from "@/lib/api/deliveries"
 import { Inventory, ProductEntity } from "@/lib/api/inventory"
+import { toast } from "react-toastify"
 
-// ✅ Simplified types for doctor view (like patient side)
-type OrderStatus = "prepare" | "send" | "completed"
+type OrderStatus = "prepare" | "completed"
 
 interface DetailedOrderItem {
   product_id: number
@@ -22,7 +21,15 @@ interface DetailedOrderItem {
   product?: ProductEntity
 }
 
-interface DetailedOrder extends GetOrderRes {
+interface DeliveryEntity {
+  id: string
+  order_id: number
+  status: string
+  created_at: string
+}
+
+interface DetailedOrder {
+  delivery: DeliveryEntity
   order_items: DetailedOrderItem[]
 }
 
@@ -30,62 +37,69 @@ export default function DoctorOrdersPage() {
   const [activeTab, setActiveTab] = useState<OrderStatus>("prepare")
   const [orders, setOrders] = useState<DetailedOrder[]>([])
   const [loading, setLoading] = useState(true)
-  const { toast } = useToast()
 
+  // ✅ Fetch deliveries
   useEffect(() => {
-    const fetchOrders = async () => {
+    const fetchDeliveries = async () => {
       try {
-        const res = await Orders.getAllOrders()
-        const data = res.data || []
+        console.log("🚚 [DoctorOrdersPage] Fetching deliveries...")
+        const res = await Deliveries.getAllDeliveries()
+        console.log("✅ Deliveries response:", res)
 
-        // ✅ Enrich each order with product info
+        const data = res?.data || []
+        console.log("📦 Deliveries count:", data.length)
+
         const enriched: DetailedOrder[] = await Promise.all(
-          data.map(async (order) => {
-            const ids = order.order_items.map((i) => i.product_id).join(",")
-            if (!ids) return order as DetailedOrder
+          data.map(async (delivery: any) => {
+            console.log("🔹 Processing delivery:", delivery.id, delivery.status)
 
+            let orderItems: DetailedOrderItem[] = []
             try {
-              const inv = await Inventory.getProducts(ids)
-              const map: Record<number, ProductEntity> = {}
-              inv.data.forEach((p) => (map[p.id] = p))
-
-              const detailedItems: DetailedOrderItem[] = order.order_items.map((item) => ({
-                product_id: item.product_id,
-                quantity: item.quantity,
-                product: map[item.product_id],
-              }))
-
-              return { ...order, order_items: detailedItems }
-            } catch {
-              return order as DetailedOrder
+              if (delivery.order?.order_items?.length) {
+                orderItems = delivery.order.order_items
+              }
+            } catch (err) {
+              console.warn("⚠️ Missing order_items for delivery:", delivery.id)
             }
+
+            // enrich product info
+            const ids = orderItems.map((i) => i.product_id).join(",")
+            if (ids) {
+              try {
+                const inv = await Inventory.getProducts(ids)
+                const map: Record<number, ProductEntity> = {}
+                inv.data.forEach((p) => (map[p.id] = p))
+                orderItems = orderItems.map((item) => ({
+                  ...item,
+                  product: map[item.product_id],
+                }))
+              } catch (err) {
+                console.error("❌ Enrich product failed:", err)
+              }
+            }
+
+            return { delivery, order_items: orderItems }
           })
         )
 
         setOrders(enriched)
       } catch (err) {
-        console.error("❌ Failed to fetch doctor orders:", err)
-        toast({
-          title: "โหลดคำสั่งซื้อไม่สำเร็จ",
-          description: "โปรดลองอีกครั้งภายหลัง",
-          variant: "destructive",
-        })
+        console.error("❌ Fetch deliveries error:", err)
+        toast.error("โหลดข้อมูลการจัดส่งไม่สำเร็จ", { position: "top-right" })
       } finally {
         setLoading(false)
       }
     }
 
-    fetchOrders()
-  }, [toast])
+    fetchDeliveries()
+  }, [])
 
+  // ✅ Map backend -> UI tab
   const mapStatus = (status: string): OrderStatus => {
     switch (status.toUpperCase()) {
-      case "PREPARING":
-      case "WAITING_PREPARE":
-      case "REJECTED":
+      case "DELIVERY_PENDING":
         return "prepare"
-      case "SHIPPING":
-        return "send"
+      case "DELIVERED":
       case "COMPLETED":
         return "completed"
       default:
@@ -94,40 +108,30 @@ export default function DoctorOrdersPage() {
   }
 
   const filteredOrders = orders.filter(
-    (o) => mapStatus(o.order.status) === activeTab
+    (o) => mapStatus(o.delivery.status) === activeTab
   )
 
-  const handleMarkPrepared = async (id: number) => {
+  // ✅ Doctor confirms delivery
+  const handleConfirmDelivery = async (id: string) => {
     try {
-      // await Orders.markPrepared(id)
-      toast({ title: "✅ เตรียมการสำเร็จแล้ว" })
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.order.id === id ? { ...o, order: { ...o.order, status: "shipping" } } : o
-        )
-      )
-    } catch {
-      toast({
-        title: "ไม่สามารถอัปเดตสถานะได้",
-        variant: "destructive",
-      })
-    }
-  }
+      console.log("📦 Confirming delivery:", id)
+      await Deliveries.updateStatus(id, "DELIVERED")
 
-  const handleMarkShipped = async (id: number) => {
-    try {
-      // await Orders.markShipped(id)
-      toast({ title: "✅ ส่งสินค้าแล้ว" })
       setOrders((prev) =>
         prev.map((o) =>
-          o.order.id === id ? { ...o, order: { ...o.order, status: "completed" } } : o
+          o.delivery.id === id
+            ? { ...o, delivery: { ...o.delivery, status: "DELIVERED" } }
+            : o
         )
       )
-    } catch {
-      toast({
-        title: "ไม่สามารถอัปเดตสถานะได้",
-        variant: "destructive",
+
+      toast.success(`✅ ยืนยันการจัดส่งสำเร็จ (Delivery #${id})`, {
+        position: "top-right",
+        autoClose: 2500,
       })
+    } catch (err) {
+      console.error("❌ Failed to update delivery:", err)
+      toast.error("ไม่สามารถอัปเดตสถานะได้", { position: "top-right" })
     }
   }
 
@@ -140,15 +144,14 @@ export default function DoctorOrdersPage() {
           <div className="min-h-screen bg-gray-50">
             <div className="mx-auto max-w-7xl px-4 py-8">
               <h1 className="mb-8 text-4xl font-bold text-gray-900">
-                คำสั่งซื้อของผู้ป่วย
+                รายการจัดส่งยา
               </h1>
 
               {/* Tabs */}
               <div className="mb-6 flex gap-2">
                 {[
-                  { key: "prepare", label: "ที่ต้องเตรียมการ" },
-                  { key: "send", label: "ที่ต้องส่ง" },
-                  { key: "completed", label: "สำเร็จ" },
+                  { key: "prepare", label: "รอการจัดส่ง" },
+                  { key: "completed", label: "จัดส่งสำเร็จ" },
                 ].map((tab) => (
                   <button
                     key={tab.key}
@@ -164,19 +167,17 @@ export default function DoctorOrdersPage() {
                 ))}
               </div>
 
-              {/* Orders List */}
+              {/* Deliveries List */}
               {loading ? (
                 <p className="text-center text-gray-500">กำลังโหลด...</p>
               ) : filteredOrders.length === 0 ? (
                 <p className="text-center text-gray-500">
-                  ไม่มีคำสั่งซื้อในหมวดนี้
+                  ไม่มีรายการจัดส่งในหมวดนี้
                 </p>
               ) : (
                 <div className="space-y-4">
                   {filteredOrders.map((o) => {
-                    const order = o.order
-
-                    // ✅ Calculate subtotal + VAT + total
+                    const d = o.delivery
                     const subtotal = o.order_items.reduce((sum, item) => {
                       const price = item.product?.unit_price ?? 0
                       return sum + price * item.quantity
@@ -185,22 +186,24 @@ export default function DoctorOrdersPage() {
                     const total = subtotal + vat
 
                     return (
-                      <Card
-                        key={order.id}
-                        className="bg-white p-6 border shadow-sm"
-                      >
+                      <Card key={d.id} className="bg-white p-6 border shadow-sm">
                         <div className="space-y-4">
-                          {/* Header */}
                           <div className="space-y-1">
                             <p className="text-sm">
                               <span className="font-semibold">
-                                หมายเลขคำสั่งซื้อ
+                                หมายเลขการจัดส่ง
                               </span>{" "}
-                              {order.id}
+                              {d.id}
                             </p>
                             <p className="text-sm">
-                              <span className="font-semibold">วันที่สั่งซื้อ</span>{" "}
-                              {new Date(order.created_at).toLocaleString("th-TH")}
+                              <span className="font-semibold">วันที่สร้าง:</span>{" "}
+                              {new Date(d.created_at).toLocaleString("th-TH")}
+                            </p>
+                            <p className="text-sm">
+                              <span className="font-semibold">สถานะ:</span>{" "}
+                              {d.status === "DELIVERED"
+                                ? "จัดส่งสำเร็จ"
+                                : d.status}
                             </p>
                           </div>
 
@@ -233,7 +236,6 @@ export default function DoctorOrdersPage() {
                               )
                             })}
 
-                            {/* VAT + total */}
                             <div className="flex justify-between border-t pt-2 text-sm">
                               <span>VAT (7%)</span>
                               <span>{vat.toFixed(2)} บาท</span>
@@ -246,25 +248,16 @@ export default function DoctorOrdersPage() {
 
                           {/* Actions */}
                           <div className="flex items-center justify-end border-t pt-4 gap-3">
-                            {mapStatus(order.status) === "prepare" && (
+                            {mapStatus(d.status) === "prepare" ? (
                               <Button
                                 className="bg-green-600 hover:bg-green-700"
-                                onClick={() => handleMarkPrepared(order.id)}
+                                onClick={() => handleConfirmDelivery(d.id)}
                               >
-                                เตรียมการสำเร็จ
+                                ยืนยันการจัดส่ง
                               </Button>
-                            )}
-                            {mapStatus(order.status) === "send" && (
-                              <Button
-                                className="bg-blue-600 hover:bg-blue-700"
-                                onClick={() => handleMarkShipped(order.id)}
-                              >
-                                ส่งเรียบร้อย
-                              </Button>
-                            )}
-                            {mapStatus(order.status) === "completed" && (
+                            ) : (
                               <p className="text-sm text-gray-600">
-                                ส่งเรียบร้อยแล้ว
+                                จัดส่งสำเร็จแล้ว
                               </p>
                             )}
                           </div>

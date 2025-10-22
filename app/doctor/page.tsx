@@ -59,6 +59,10 @@ export default function AppointmentsPage() {
           <SidebarTrigger />
           <div className="flex items-center justify-between mb-8 mt-4">
             <h1 className="text-3xl font-bold text-gray-900">การนัดพบผู้ป่วย</h1>
+            <Button className="bg-black hover:bg-gray-800 text-white px-6 py-2 rounded-lg flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              เพิ่มการนัดหมาย
+            </Button>
           </div>
 
           {loading ? (
@@ -99,7 +103,7 @@ export default function AppointmentsPage() {
                           รายละเอียด
                         </Button>
                         <Button
-                          onClick={() => handlePrescribe(appointment.patient_id)}
+                          onClick={() => handlePrescribe(appointment.id)}
                           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
                         >
                           สั่งยา

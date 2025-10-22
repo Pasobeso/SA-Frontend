@@ -10,7 +10,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
-import { useToast } from "@/hooks/use-toast"
 import { Orders, GetOrderRes } from "@/lib/api/orders"
 import { Inventory, ProductEntity } from "@/lib/api/inventory"
 import {
@@ -20,8 +19,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { Payments } from "@/lib/api/payments"
+import { toast } from "react-toastify"
+import "react-toastify/dist/ReactToastify.css"
 
-type OrderStatus = "pay" | "prepare" | "send" | "completed"
+type OrderStatus = "pay" | "prepare" | "completed"
+
 
 interface DetailedOrderItem {
   product_id: number
@@ -37,76 +40,72 @@ export default function MedicineOrdersPage() {
   const [activeTab, setActiveTab] = useState<OrderStatus>("pay")
   const [orders, setOrders] = useState<DetailedOrder[]>([])
   const [loading, setLoading] = useState(true)
-  const { toast } = useToast()
 
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
   const [isPaying, setIsPaying] = useState(false)
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const res = await Orders.getMyOrders()
-        const orderData = res.data || []
-
-        const enrichedOrders: DetailedOrder[] = await Promise.all(
-          orderData.map(async (order) => {
-            const ids = order.order_items.map((i) => i.product_id).join(",")
-            if (!ids) return order
-
-            try {
-              const productRes = await Inventory.getProducts(ids)
-              const productMap: Record<number, ProductEntity> = {}
-              productRes.data.forEach((p) => (productMap[p.id] = p))
-
-              const detailedItems: DetailedOrderItem[] = order.order_items.map(
-                (item) => ({
-                  ...item,
-                  product: productMap[item.product_id],
-                })
-              )
-
-              return { ...order, order_items: detailedItems }
-            } catch {
-              return order
-            }
-          })
-        )
-
-        setOrders(enrichedOrders)
-      } catch (err) {
-        console.error("❌ Failed to fetch orders:", err)
-        toast({
-          title: "โหลดคำสั่งซื้อไม่สำเร็จ",
-          description: "โปรดลองอีกครั้งในภายหลัง",
-          variant: "destructive",
-        })
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchOrders()
-  }, [toast])
-
-// 🔹 Map backend status → frontend tab
+  // Map backend status → tab
 const mapStatus = (status: string): OrderStatus => {
   switch (status.toUpperCase()) {
-    case "WAITING_PAYMENT":
     case "PENDING":
-    case "REJECTED": // ✅ add this line
+    case "RESERVED":
+    case "PAYMENT_PENDING":
+    case "REJECTED":
       return "pay"
-    case "PREPARING":
+
+    case "DELIVERY_PENDING":
       return "prepare"
-    case "SHIPPING":
-      return "send"
+
+    case "DELIVERED":
     case "COMPLETED":
       return "completed"
+
     default:
-      return "prepare"
+      return "pay"
   }
 }
 
+
+  // Fetch orders and enrich product data
+  const fetchAndEnrichOrders = async () => {
+    const res = await Orders.getMyOrders()
+    const orderData = res.data || []
+
+    const enrichedOrders: DetailedOrder[] = await Promise.all(
+      orderData.map(async (order: DetailedOrder) => {
+        const ids = order.order_items.map((i) => i.product_id).join(",")
+        if (!ids) return order
+        try {
+          const productRes = await Inventory.getProducts(ids)
+          const productMap: Record<number, ProductEntity> = {}
+          productRes.data.forEach((p: ProductEntity) => (productMap[p.id] = p))
+          const detailedItems = order.order_items.map((item) => ({
+            ...item,
+            product: productMap[item.product_id],
+          }))
+          return { ...order, order_items: detailedItems }
+        } catch {
+          return order
+        }
+      })
+    )
+
+    setOrders(enrichedOrders)
+  }
+
+  useEffect(() => {
+    (async () => {
+      try {
+        await fetchAndEnrichOrders()
+      } catch (err) {
+        console.error("❌ Failed to fetch orders:", err)
+        toast.error("โหลดคำสั่งซื้อไม่สำเร็จ")
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [])
 
   const filteredOrders = orders.filter(
     (o) => mapStatus(o.order.status) === activeTab
@@ -117,40 +116,67 @@ const mapStatus = (status: string): OrderStatus => {
     setShowPaymentModal(true)
   }
 
-  const handleConfirmPayment = async () => {
-    if (!selectedOrderId) return
-    setIsPaying(true)
-
+  // Reserved → Payment Pending
+  async function handleReservedToPaymentPending(orderId: number) {
+    console.log("🧾 Converting RESERVED → PAYMENT_PENDING for order:", orderId)
     try {
-      const paymentRes = await Orders.createPayment(selectedOrderId, "promptpay")
-      const paymentId = paymentRes.data.payment.id
-      await Orders.mockPay(paymentId)
-
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.order.id === selectedOrderId
-            ? { ...o, order: { ...o.order, status: "preparing" } }
-            : o
-        )
-      )
-
-      toast({
-        title: "✅ ชำระเงินสำเร็จ!",
-        description: `คำสั่งซื้อ #${selectedOrderId} ได้รับการชำระเงินเรียบร้อยแล้ว`,
-      })
-
-      setShowPaymentModal(false)
-    } catch (err) {
-      console.error("❌ Payment failed:", err)
-      toast({
-        title: "เกิดข้อผิดพลาดในการชำระเงิน",
-        description: "โปรดลองอีกครั้ง",
-        variant: "destructive",
-      })
+      setIsPaying(true)
+      const createRes = await Payments.createPayment(orderId, "qr_payment")
+      console.log("✅ createPayment response:", createRes)
+      toast.success("อัพเดทสถานะเป็น Payment Pending แล้ว ✅")
+      await fetchAndEnrichOrders()
+    } catch (err: any) {
+      console.error("❌ Reserved→PaymentPending error", err.response?.data || err)
+      toast.error("ไม่สามารถอัพเดทสถานะเป็น Payment Pending ได้")
     } finally {
       setIsPaying(false)
     }
   }
+
+  // Payment Pending → Delivery Pending
+const handleConfirmPayment = async () => {
+  if (!selectedOrderId) return
+  setIsPaying(true)
+
+  try {
+    // 1) สร้าง payment (ใช้ qr_payment)
+    const paymentRes = await Orders.createPayment(selectedOrderId, "qr_payment")
+
+    // ✅ ปลอดภัย: extract id ด้วย type narrowing
+    const paymentObj = paymentRes?.data?.payment as
+      | { id?: number | string }
+      | undefined
+    const paymentId = paymentObj?.id
+
+    if (!paymentId) throw new Error("Missing payment id")
+
+    // 2) mock pay (ไม่มี body) + แปลงเป็น string
+    await Orders.mockPay(paymentId.toString())
+
+    // 3) โหลดรายการใหม่
+    await fetchAndEnrichOrders()
+    setActiveTab("prepare")
+
+    // ✅ ใช้ react-toastify (ไม่ใช่ shadcn)
+    toast.success(`✅ ชำระเงินสำเร็จ! คำสั่งซื้อ #${selectedOrderId} กำลังเตรียมการจัดส่ง`, {
+      position: "top-right",
+      autoClose: 2500,
+    })
+
+    setShowPaymentModal(false)
+    setSelectedOrderId(null)
+  } catch (err) {
+    console.error("❌ Payment failed:", err)
+    toast.error("❌ เกิดข้อผิดพลาดในการชำระเงิน โปรดลองอีกครั้ง", {
+      position: "top-right",
+      autoClose: 2500,
+    })
+  } finally {
+    setIsPaying(false)
+  }
+}
+
+
 
   return (
     <SidebarProvider>
@@ -169,7 +195,6 @@ const mapStatus = (status: string): OrderStatus => {
                 {[
                   { key: "pay", label: "ที่ต้องชำระ" },
                   { key: "prepare", label: "กำลังเตรียมการ" },
-                  { key: "send", label: "ที่ต้องได้รับ" },
                   { key: "completed", label: "สำเร็จ" },
                 ].map((tab) => (
                   <button
@@ -186,17 +211,14 @@ const mapStatus = (status: string): OrderStatus => {
                 ))}
               </div>
 
-              {/* Orders List */}
+              {/* Orders */}
               {loading ? (
                 <p className="text-center text-gray-500">กำลังโหลด...</p>
               ) : filteredOrders.length === 0 ? (
-                <p className="text-center text-gray-500">
-                  ไม่มีคำสั่งซื้อในหมวดนี้
-                </p>
+                <p className="text-center text-gray-500">ไม่มีคำสั่งซื้อในหมวดนี้</p>
               ) : (
                 <div className="space-y-4">
                   {filteredOrders.map((o) => {
-                    // ✅ Calculate subtotal and VAT per order
                     const subtotal = o.order_items.reduce((sum, item) => {
                       const price = item.product?.unit_price ?? 0
                       return sum + price * item.quantity
@@ -210,7 +232,6 @@ const mapStatus = (status: string): OrderStatus => {
                         className="bg-white p-6 shadow-sm border border-gray-200"
                       >
                         <div className="space-y-4">
-                          {/* Header */}
                           <div className="space-y-1">
                             <p className="text-sm">
                               <span className="font-semibold">
@@ -222,9 +243,15 @@ const mapStatus = (status: string): OrderStatus => {
                               <span className="font-semibold">วันที่สั่งซื้อ</span>{" "}
                               {new Date(o.order.created_at).toLocaleString("th-TH")}
                             </p>
+                            <p className="text-sm">
+                              <span className="font-semibold">สถานะระบบ:</span>{" "}
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                {o.order.status}
+                              </span>
+                            </p>
                           </div>
 
-                          {/* Items */}
+                          {/* Order items */}
                           <div className="space-y-2 border-t pt-4">
                             {o.order_items.map((item, idx) => {
                               const product = item.product
@@ -252,7 +279,6 @@ const mapStatus = (status: string): OrderStatus => {
                               )
                             })}
 
-                            {/* ✅ VAT + Total */}
                             <div className="flex justify-between border-t pt-2 text-sm">
                               <span>VAT (7%)</span>
                               <span>{vat.toFixed(2)} บาท</span>
@@ -263,35 +289,36 @@ const mapStatus = (status: string): OrderStatus => {
                             </div>
                           </div>
 
-                          {/* Status / Action */}
+                          {/* Actions */}
                           <div className="flex items-center justify-between border-t pt-4">
-{mapStatus(o.order.status) === "pay" && (
-  <div className="flex justify-end w-full">
-    <Button
-      className="bg-green-600 hover:bg-green-700"
-      onClick={() => handleOpenPayment(o.order.id)}
-    >
-      ชำระด้วย PromptPay
-    </Button>
-  </div>
-)}
-
-                            {mapStatus(o.order.status) === "prepare" && (
-                              <p className="text-sm text-green-600">
-                                กำลังเตรียมการ...
-                              </p>
+                            {o.order.status === "RESERVED" && (
+                              <div className="flex justify-end w-full">
+                                <Button
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                  onClick={() => handleReservedToPaymentPending(o.order.id)}
+                                  disabled={isPaying}
+                                >
+                                  {isPaying ? "กำลังยืนยัน..." : "ยืนยันการชำระเงิน"}
+                                </Button>
+                              </div>
                             )}
 
-                            {mapStatus(o.order.status) === "send" && (
-                              <p className="text-sm text-blue-600">
-                                อยู่ระหว่างการจัดส่ง
-                              </p>
+                            {o.order.status === "PAYMENT_PENDING" && (
+                              <div className="flex justify-end w-full">
+                                <Button
+                                  className="bg-green-600 hover:bg-green-700"
+                                  onClick={() => handleOpenPayment(o.order.id)}
+                                >
+                                  ชำระด้วย PromptPay
+                                </Button>
+                              </div>
                             )}
 
-                            {mapStatus(o.order.status) === "completed" && (
-                              <p className="text-sm text-gray-600">
-                                จัดส่งสำเร็จ
-                              </p>
+                            {o.order.status === "DELIVERY_PENDING" && (
+                              <p className="text-sm text-green-600">กำลังเตรียมการ...</p>
+                            )}
+                            {o.order.status === "COMPLETED" && (
+                              <p className="text-sm text-gray-600">จัดส่งสำเร็จ</p>
                             )}
                           </div>
                         </div>
@@ -304,7 +331,7 @@ const mapStatus = (status: string): OrderStatus => {
           </div>
         </div>
 
-        {/* ✅ Payment Modal */}
+        {/* Payment Modal */}
         <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
           <DialogContent className="sm:max-w-md text-center">
             <DialogHeader>
@@ -325,13 +352,13 @@ const mapStatus = (status: string): OrderStatus => {
             </div>
 
             <DialogFooter className="mt-6">
-              <Button
-                className="bg-green-600 hover:bg-green-700 w-full"
-                onClick={handleConfirmPayment}
-                disabled={isPaying}
-              >
-                {isPaying ? "กำลังยืนยัน..." : "ยืนยันการชำระเงิน"}
-              </Button>
+<Button
+  className="bg-green-600 hover:bg-green-700 w-full"
+  onClick={handleConfirmPayment} // ✅ ไม่ต้องส่งอะไร
+  disabled={isPaying}
+>
+  {isPaying ? "กำลังยืนยัน..." : "ยืนยันการชำระเงิน"}
+</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

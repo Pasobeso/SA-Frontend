@@ -46,4 +46,32 @@ export namespace Deliveries {
     const res = await client.patch(`${DELIVERIES_URL}/patients/deliveries/${id}`, data);
     return res.data as ApiResponse<DeliveryAddressEntity>;
   }
+
+  // ✅ อัปเดตสถานะการจัดส่ง
+// ✅ อัปเดตสถานะการจัดส่ง (แก้ path ให้ถูก)
+// ✅ อัปเดตสถานะการจัดส่ง (ใช้ path ที่ถูกต้อง)
+// ✅ PATCH /deliveries/{id}/status
+export async function updateStatus(deliveryId: string | number, status: string) {
+  console.log("🚀 Updating delivery:", `${DELIVERIES_URL}/deliveries/${deliveryId}/status`, "status:", status)
+
+  const body = {
+    description: "-",
+    status,
+  }
+
+  const res = await client.patch(`${DELIVERIES_URL}/deliveries/${deliveryId}/status`, body)
+  console.log("✅ Delivery update response:", res.data)
+
+  return res.data
+}
+
+// ✅ GET /deliveries
+export async function getAllDeliveries() {
+  console.log("📡 Fetching all deliveries from:", `${DELIVERIES_URL}/deliveries`)
+  const res = await client.get(`${DELIVERIES_URL}/deliveries`)
+  return res.data
+}
+
+
+
 }

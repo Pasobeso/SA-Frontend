@@ -50,19 +50,20 @@ const CartSheet: React.FC<CartSheetProps> = ({ open, onOpenChange }) => {
       setLoading(true)
 
       // ✅ Build backend-compatible payload
-      const payload = {
-        cart_items: items.map((item) => ({
-          product_id: item.product.id,
-          quantity: item.quantity,
-        })),
-        delivery_method: deliveryMethod,
-        address_id: selectedAddressId || null,
-      }
+const payload = {
+  cart_items: items.map((item) => ({
+    product_id: Number(item.product.id), // ✅ convert to number
+    quantity: item.quantity,
+  })),
+  delivery_method: deliveryMethod,
+  address_id: selectedAddressId ? Number(selectedAddressId) : null, // ✅ convert if needed
+}
+
 
       console.log("🟢 Checkout payload:", payload)
 
       // ✅ Call your real API
-      const res = await Orders.createOrder(payload)
+      const res = await Orders.createOrderFromCart(payload)
       console.log("✅ Order created:", res)
 
       toast({
