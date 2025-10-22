@@ -15,7 +15,7 @@ import { Deliveries } from "@/lib/api/deliveries"
 import { toast } from "react-toastify"
 
 // ✅ Simplified types for doctor view
-type OrderStatus = "prepare" | "send" | "completed"
+type OrderStatus = "prepare" | "completed"
 
 interface DetailedOrderItem {
   product_id: number
@@ -82,8 +82,6 @@ export default function DoctorOrdersPage() {
       case "DELIVERY_PENDING":
         return "prepare"
       case "DELIVERED":
-        return "send"
-      case "COMPLETED":
         return "completed"
       default:
         return "prepare"
@@ -95,9 +93,9 @@ export default function DoctorOrdersPage() {
   )
 
   // ✅ เตรียมการสำเร็จ → PATCH /deliveries/{id}
-  const handleMarkPrepared = async (id: number) => {
+  const handleMarkPrepared = async (id: number ,delivery_id: string) => {
     try {
-      await Deliveries.updateStatus(id, "DELIVERED")
+      await Deliveries.updateStatus(delivery_id, "DELIVERED")
       setOrders((prev) =>
         prev.map((o) =>
           o.order.id === id ? { ...o, order: { ...o.order, status: "DELIVERED" } } : o
@@ -152,7 +150,6 @@ export default function DoctorOrdersPage() {
               <div className="mb-6 flex gap-2">
                 {[
                   { key: "prepare", label: "ที่ต้องเตรียมการ" },
-                  { key: "send", label: "ที่ต้องส่ง" },
                   { key: "completed", label: "สำเร็จ" },
                 ].map((tab) => (
                   <button
@@ -251,17 +248,9 @@ export default function DoctorOrdersPage() {
                             {mapStatus(order.status) === "prepare" && (
                               <Button
                                 className="bg-green-600 hover:bg-green-700"
-                                onClick={() => handleMarkPrepared(order.id)}
+                                onClick={() => handleMarkPrepared(order.id, (order as any).delivery_id)}
                               >
                                 เตรียมการสำเร็จ
-                              </Button>
-                            )}
-                            {mapStatus(order.status) === "send" && (
-                              <Button
-                                className="bg-blue-600 hover:bg-blue-700"
-                                onClick={() => handleMarkShipped(order.id)}
-                              >
-                                ส่งเรียบร้อย
                               </Button>
                             )}
                             {mapStatus(order.status) === "completed" && (
