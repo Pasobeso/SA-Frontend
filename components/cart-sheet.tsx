@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { useCartStore } from "@/lib/cart-store"
 import { AddressDialog } from "@/components/address-dialog"
-import { toast } from "react-toastify" // ✅ use react-toastify
+import { toast } from "react-toastify"
 import { useAddressStore } from "@/lib/address-store"
+import { Carts } from "@/lib/api/carts"
+import { Orders } from "@/lib/api/orders"
 
 interface CartSheetProps {
   open: boolean
@@ -19,7 +21,7 @@ interface CartSheetProps {
 
 export function CartSheet({ open, onOpenChange }: CartSheetProps) {
   const [addressDialogOpen, setAddressDialogOpen] = useState(false)
-  const { addresses, loading, fetchAddresses } = useAddressStore()
+  const { addresses, fetchAddresses } = useAddressStore()
 
   const items = useCartStore((state) => state.items)
   const deliveryMethod = useCartStore((state) => state.deliveryMethod)
@@ -31,42 +33,73 @@ export function CartSheet({ open, onOpenChange }: CartSheetProps) {
   const getVAT = useCartStore((state) => state.getVAT)
   const clearCart = useCartStore((state) => state.clearCart)
 
-  // ✅ Fetch addresses from store when sheet opens
+  const [submitting, setSubmitting] = useState(false)
+
+  // ✅ Fetch addresses when open
   useEffect(() => {
     if (open) fetchAddresses()
   }, [open, fetchAddresses])
 
-  // ✅ Toastify checkout logic
-  const handleCheckout = () => {
-    if (items.length === 0) {
-      toast.warning("ตะกร้าสินค้าว่าง กรุณาเพิ่มสินค้าก่อนสั่งซื้อ", {
-        position: "top-right",
-        autoClose: 2500,
-        theme: "colored",
-      })
-      return
+  // ✅ Checkout logic
+  // ✅ Inside handleCheckout()
+
+const handleCheckout = async () => {
+  if (items.length === 0) {
+    toast.warning("ตะกร้าสินค้าว่าง กรุณาเพิ่มสินค้าก่อนสั่งซื้อ", { theme: "colored" })
+    return
+  }
+
+  if (deliveryMethod === "delivery" && !selectedAddressId) {
+    toast.error("กรุณาเลือกที่อยู่จัดส่ง", { theme: "colored" })
+    return
+  }
+
+  try {
+    setSubmitting(true)
+
+    // 1️⃣ Create Cart payload
+    const cartPayload = {
+      cart_items: items.map((i) => ({
+        product_id: Number(i.product.id),
+        quantity: i.quantity,
+      })),
     }
 
-    if (deliveryMethod === "delivery" && !selectedAddressId) {
-      toast.error("กรุณาเลือกที่อยู่จัดส่ง", {
-        position: "top-right",
-        autoClose: 2500,
-        theme: "colored",
-      })
-      return
-    }
+    // ✅ Print payload before sending
+    console.log("🧾 Cart Payload:", JSON.stringify(cartPayload, null, 2))
 
-    toast.success("สั่งซื้อสำเร็จ! คำสั่งซื้อของคุณได้รับการบันทึกแล้ว", {
+    const cartRes = await Carts.createCart(cartPayload)
+    const cartId = cartRes.data.cart.id
+
+    // 2️⃣ Create Order payload
+    const deliveryId = deliveryMethod === "delivery" ? Number(selectedAddressId) : 0
+    const orderPayload = { cart_id: cartId, delivery_id: deliveryId }
+
+    // ✅ Print payload before sending
+    console.log("📦 Order Payload:", JSON.stringify(orderPayload, null, 2))
+
+    const orderRes = await Orders.createOrder(cartId, deliveryId)
+
+    toast.success("✅ สั่งซื้อสำเร็จ!", {
       position: "top-right",
       autoClose: 2500,
       theme: "colored",
     })
 
     clearCart()
-
-    // ✅ delay close slightly so toast shows first
-    setTimeout(() => onOpenChange(false), 0)
+    setTimeout(() => onOpenChange(false), 500)
+    console.log("🧾 Order created:", orderRes.data)
+  } catch (err: any) {
+    console.error("❌ สั่งซื้อไม่สำเร็จ:", err)
+    toast.error("ไม่สามารถสั่งซื้อได้ โปรดลองอีกครั้งภายหลัง", {
+      position: "top-right",
+      autoClose: 2500,
+      theme: "colored",
+    })
+  } finally {
+    setSubmitting(false)
   }
+}
 
   return (
     <>
@@ -201,8 +234,9 @@ export function CartSheet({ open, onOpenChange }: CartSheetProps) {
                     className="w-full bg-green-600 hover:bg-green-700 mt-2"
                     size="lg"
                     onClick={handleCheckout}
+                    disabled={submitting}
                   >
-                    สั่งยา
+                    {submitting ? "กำลังสั่งซื้อ..." : "สั่งยา"}
                   </Button>
                 </div>
               </>

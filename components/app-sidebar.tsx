@@ -34,18 +34,18 @@ export function AppSidebar() {
   const items = [
     {
       title: "จัดการการนัดหมาย",
-      url: "/main",
+      url: "/patient",
       icon: CalendarClock,
-    },
-        {
-      title: "History",
-      url: "/history",
-      icon: History,
     },
     {
       title: "สั่งซื้อยา",
-      url: "/med",
+      url: "/doctor/med",
       icon: Pill,
+    },
+        {
+      title: "สถานะการสั่งยา",
+      url: "/patient/order",
+      icon: History,
     },
   ]
 

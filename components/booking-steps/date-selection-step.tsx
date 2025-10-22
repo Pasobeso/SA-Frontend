@@ -15,22 +15,12 @@ interface DateSelectionStepProps {
 export function DateSelectionStep({ data, onUpdate, onNext, onBack }: DateSelectionStepProps) {
   const today = new Date()
   const [currentMonth, setCurrentMonth] = useState(today.getMonth())
-  const [currentYear, setCurrentYear] = useState(today.getFullYear() + 543) // Buddhist calendar
+  const [currentYear, setCurrentYear] = useState(today.getFullYear() + 543)
   const [selectedDate, setSelectedDate] = useState<number | null>(null)
 
   const thaiMonths = [
-    "มกราคม",
-    "กุมภาพันธ์",
-    "มีนาคม",
-    "เมษายน",
-    "พฤษภาคม",
-    "มิถุนายน",
-    "กรกฎาคม",
-    "สิงหาคม",
-    "กันยายน",
-    "ตุลาคม",
-    "พฤศจิกายน",
-    "ธันวาคม",
+    "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+    "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
   ]
 
   const daysInMonth = new Date(currentYear - 543, currentMonth + 1, 0).getDate()
@@ -39,20 +29,24 @@ export function DateSelectionStep({ data, onUpdate, onNext, onBack }: DateSelect
   const days: (number | null)[] = []
   const dayLabels = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
 
-  // Add empty slots before first day
   for (let i = 0; i < firstDayOfMonth; i++) days.push(null)
-  // Add days of current month
   for (let day = 1; day <= daysInMonth; day++) days.push(day)
 
   const handleDateSelect = (day: number) => {
     const selected = new Date(currentYear - 543, currentMonth, day)
     const now = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-    if (selected < now) return // block past selection
+    if (selected < now) return
 
     setSelectedDate(day)
-    const dateString = `${day} ${thaiMonths[currentMonth]} ${currentYear}`
-    onUpdate({ selectedSlot: undefined }) // clear slot before date change
-    onUpdate({ slot_id: "", selectedDate: dateString })
+
+    // ✅ store full ISO date
+    const isoDate = selected.toISOString()
+    onUpdate({
+      selectedSlot: undefined,
+      slot_id: "",
+      appointment_date: isoDate, // 🔥 store as ISO date
+    } as any)
+
   }
 
   const handleNext = () => {
@@ -60,44 +54,37 @@ export function DateSelectionStep({ data, onUpdate, onNext, onBack }: DateSelect
   }
 
   const navigateMonth = (direction: "prev" | "next") => {
-    // Prevent going back before today’s month/year
     const thisMonth = today.getMonth()
     const thisYear = today.getFullYear() + 543
 
     if (direction === "prev") {
-      if (currentYear === thisYear && currentMonth === thisMonth) return // prevent going before current month
+      if (currentYear === thisYear && currentMonth === thisMonth) return
       if (currentMonth === 0) {
         setCurrentMonth(11)
         setCurrentYear(currentYear - 1)
-      } else {
-        setCurrentMonth(currentMonth - 1)
-      }
+      } else setCurrentMonth(currentMonth - 1)
     } else {
       if (currentMonth === 11) {
         setCurrentMonth(0)
         setCurrentYear(currentYear + 1)
-      } else {
-        setCurrentMonth(currentMonth + 1)
-      }
+      } else setCurrentMonth(currentMonth + 1)
     }
   }
 
   return (
     <div className="space-y-6">
-      {/* Calendar Header */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <Button variant="ghost" size="sm" onClick={() => navigateMonth("prev")} className="p-1">
           <ChevronLeft className="w-4 h-4" />
         </Button>
-        <h3 className="text-lg font-semibold">
-          {thaiMonths[currentMonth]} {currentYear}
-        </h3>
+        <h3 className="text-lg font-semibold">{thaiMonths[currentMonth]} {currentYear}</h3>
         <Button variant="ghost" size="sm" onClick={() => navigateMonth("next")} className="p-1">
           <ChevronRight className="w-4 h-4" />
         </Button>
       </div>
 
-      {/* Calendar Grid */}
+      {/* Calendar */}
       <div className="grid grid-cols-7 gap-1 mb-4">
         {dayLabels.map((label) => (
           <div key={label} className="text-center text-sm font-medium text-gray-500 py-2">
@@ -130,7 +117,7 @@ export function DateSelectionStep({ data, onUpdate, onNext, onBack }: DateSelect
         })}
       </div>
 
-      {/* Selected Date */}
+      {/* Selected */}
       {selectedDate && (
         <div className="text-center py-4 bg-gray-50 rounded-lg">
           <p className="text-lg font-semibold text-gray-800">
@@ -139,16 +126,10 @@ export function DateSelectionStep({ data, onUpdate, onNext, onBack }: DateSelect
         </div>
       )}
 
-      {/* Navigation Buttons */}
+      {/* Navigation */}
       <div className="flex justify-between pt-4">
-        <Button variant="outline" onClick={onBack} className="px-6 py-2 bg-transparent">
-          ← กลับ
-        </Button>
-        <Button
-          onClick={handleNext}
-          disabled={!selectedDate}
-          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg disabled:opacity-50"
-        >
+        <Button variant="outline" onClick={onBack}>← กลับ</Button>
+        <Button onClick={handleNext} disabled={!selectedDate} className="bg-green-600 hover:bg-green-700 text-white">
           ต่อไป →
         </Button>
       </div>

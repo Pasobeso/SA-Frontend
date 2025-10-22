@@ -3,44 +3,41 @@
 import { Button } from "@/components/ui/button"
 import type { BookingData } from "../appointment-booking-wizard"
 
+type ExtendedBookingData = BookingData & {
+  appointment_date?: string
+  appointment_time?: string
+}
+
 interface ConfirmationStepProps {
-  data: BookingData
+  data: ExtendedBookingData
   onConfirm: () => void
   onBack: () => void
 }
 
 export function ConfirmationStep({ data, onConfirm, onBack }: ConfirmationStepProps) {
+  const formattedDate =
+    data.appointment_time &&
+    new Date(data.appointment_time).toLocaleDateString("th-TH", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
+
+  const formattedTime =
+    data.appointment_time &&
+    new Date(data.appointment_time).toLocaleTimeString("th-TH", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+
   return (
     <div className="space-y-6">
-      {/* Summary of patient information */}
-      <div className="space-y-4">
-        <div className="flex justify-between py-2 border-b border-gray-200">
-          <span className="text-gray-600">อาการผิดปกติ</span>
-          <span className="font-medium">{data.patient_abnormal_symptom || "-"}</span>
-        </div>
+      <InfoRow label="อาการผิดปกติ" value={data.patient_abnormal_symptom} />
+      <InfoRow label="มีการขาดยาหรือไม่" value={data.patient_is_missed_medication} />
+      <InfoRow label="มีการตรวจเลือดไหม" value={data.patient_blood_test_status} />
+      <InfoRow label="เคยกินยาเกินเวลาหรือไม่" value={data.patient_is_overdue_medication} />
+      <InfoRow label="คู่สมรสเป็น HIV หรือไม่" value={data.patient_is_partner_hiv_positive} />
 
-        <div className="flex justify-between py-2 border-b border-gray-200">
-          <span className="text-gray-600">มีการขาดยาหรือไม่</span>
-          <span className="font-medium">{data.patient_is_missed_medication || "-"}</span>
-        </div>
-
-        <div className="flex justify-between py-2 border-b border-gray-200">
-          <span className="text-gray-600">มีการตรวจเลือดไหม</span>
-          <span className="font-medium">{data.patient_blood_test_status || "-"}</span>
-        </div>
-
-        <div className="flex justify-between py-2 border-b border-gray-200">
-          <span className="text-gray-600">เคยกินยาเกินเวลาหรือไม่</span>
-          <span className="font-medium">{data.patient_is_overdue_medication || "-"}</span>
-        </div>
-
-        <div className="flex justify-between py-2 border-b border-gray-200">
-          <span className="text-gray-600">คู่สมรสเป็น HIV หรือไม่</span>
-          <span className="font-medium">{data.patient_is_partner_hiv_positive || "-"}</span>
-        </div>
-      </div>
-
-      {/* Selected doctor */}
       <div className="bg-gray-50 p-4 rounded-lg">
         <h4 className="font-semibold text-gray-800 mb-2">แพทย์ที่นัด</h4>
         <p className="text-gray-700">
@@ -50,36 +47,30 @@ export function ConfirmationStep({ data, onConfirm, onBack }: ConfirmationStepPr
         </p>
       </div>
 
-      {/* Selected time */}
       <div className="bg-gray-50 p-4 rounded-lg">
         <h4 className="font-semibold text-gray-800 mb-2">วัน-เวลาที่นัด</h4>
-        <p className="text-gray-700">
-          {data.selectedSlot
-            ? `${new Date(data.selectedSlot.start_time).toLocaleDateString("th-TH", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })} 
-              เวลา ${new Date(data.selectedSlot.start_time).toLocaleTimeString("th-TH", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}`
-            : "ยังไม่ได้เลือกวันเวลา"}
-        </p>
+        {formattedDate && formattedTime ? (
+          <p className="text-gray-700">{formattedDate} เวลา {formattedTime}</p>
+        ) : (
+          <p className="text-gray-500">ยังไม่ได้เลือกวันเวลา</p>
+        )}
       </div>
 
-      {/* Navigation Buttons */}
       <div className="flex justify-between pt-4">
-        <Button variant="outline" onClick={onBack} className="px-6 py-2 bg-transparent">
-          ← กลับ
-        </Button>
-        <Button
-          onClick={onConfirm}
-          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg"
-        >
+        <Button variant="outline" onClick={onBack}>← กลับ</Button>
+        <Button onClick={onConfirm} className="bg-green-600 hover:bg-green-700 text-white">
           ยืนยัน
         </Button>
       </div>
+    </div>
+  )
+}
+
+function InfoRow({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="flex justify-between py-2 border-b border-gray-200">
+      <span className="text-gray-600">{label}</span>
+      <span className="font-medium">{value || "-"}</span>
     </div>
   )
 }

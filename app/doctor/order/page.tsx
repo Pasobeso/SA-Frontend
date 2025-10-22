@@ -3,6 +3,14 @@
 import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
+import { AppSidebar } from "@/components/app-sidebar"
+import { Plus } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 type OrderStatus = "prepare" | "send" | "completed"
 
@@ -87,6 +95,11 @@ export default function MedicineOrdersPage() {
   const filteredOrders = mockOrders.filter((order) => order.status === activeTab)
 
   return (
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <div className="relative flex-1 p-4 md:p-8">
+          <SidebarTrigger />
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 py-8">
         <h1 className="mb-8 text-4xl font-bold text-gray-900">รายการสั่งยา</h1>
@@ -186,5 +199,8 @@ export default function MedicineOrdersPage() {
         </div>
       </div>
     </div>
+            </div>
+      </SidebarInset>
+  </SidebarProvider>
   )
 }
