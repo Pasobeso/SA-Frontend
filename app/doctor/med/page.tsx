@@ -9,7 +9,7 @@ import { useCartStore } from "@/lib/cart-store"
 import { AddressDialog } from "@/components/address-dialog"
 import { CartSheet } from "@/components/cart-sheet-doc"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
+import { AppSidebar } from "@/components/app-docsidebar"
 import { Inventory } from "@/lib/api/inventory" // ✅ new API module
 
 export default function HomePage() {
