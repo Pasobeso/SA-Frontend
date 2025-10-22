@@ -42,7 +42,7 @@ export function AppointmentBookingWizard({
   onComplete,
 }: AppointmentBookingWizardProps) {
   const [currentStep, setCurrentStep] = useState(1)
-  const totalSteps = 4
+  const totalSteps = 3
 
   // ✅ initialize with backend fields
   const [bookingData, setBookingData] = useState<BookingData>({
@@ -88,7 +88,6 @@ const handleComplete = async () => {
       patient_is_partner_hiv_positive: yesNoToText(localData.patient_is_partner_hiv_positive),
     }
 
-    console.log("✅ Final payload:", payload)
     const res = await Booking.addAppointment(payload)
 
     toast.success("บันทึกการนัดหมายสำเร็จ 🎉", { position: "top-right" })
@@ -116,16 +115,16 @@ const handleComplete = async () => {
             onNext={handleNext}
           />
         )
+      // case 2:
+      //   return (
+      //     <DateSelectionStep
+      //       data={bookingData}
+      //       onUpdate={updateBookingData}
+      //       onNext={handleNext}
+      //       onBack={handleBack}
+      //     />
+      //   )
       case 2:
-        return (
-          <DateSelectionStep
-            data={bookingData}
-            onUpdate={updateBookingData}
-            onNext={handleNext}
-            onBack={handleBack}
-          />
-        )
-      case 3:
         return (
           <TimeSelectionStep
             data={bookingData}
@@ -134,7 +133,7 @@ const handleComplete = async () => {
             onBack={handleBack}
           />
         )
-      case 4:
+      case 3:
         return (
           <ConfirmationStep
             data={bookingData}
@@ -153,9 +152,9 @@ const handleComplete = async () => {
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">
             {currentStep === 1 && "1. ใส่ข้อมูลเพื่อนัดหมาย"}
-            {currentStep === 2 && "2. เลือกวันที่นัดหมาย"}
-            {currentStep === 3 && "3. เลือกช่วงเวลา / หมอ"}
-            {currentStep === 4 && "4. ยืนยันการนัดหมาย"}
+            {/* {currentStep === 2 && "2. เลือกวันที่นัดหมาย"} */}
+            {currentStep === 2 && "2. เลือกช่วงเวลา / หมอ"}
+            {currentStep === 3 && "3. ยืนยันการนัดหมาย"}
           </DialogTitle>
         </DialogHeader>
 

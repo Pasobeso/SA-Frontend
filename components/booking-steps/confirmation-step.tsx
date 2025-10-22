@@ -6,6 +6,7 @@ import type { BookingData } from "../appointment-booking-wizard"
 type ExtendedBookingData = BookingData & {
   appointment_date?: string
   appointment_time?: string
+  doctor_name?: string
 }
 
 interface ConfirmationStepProps {
@@ -41,16 +42,18 @@ export function ConfirmationStep({ data, onConfirm, onBack }: ConfirmationStepPr
       <div className="bg-gray-50 p-4 rounded-lg">
         <h4 className="font-semibold text-gray-800 mb-2">แพทย์ที่นัด</h4>
         <p className="text-gray-700">
-          {data.selectedSlot?.doctor_id
-            ? `รหัสแพทย์ ${data.selectedSlot.doctor_id}`
+          {data.doctor_name
+            ? data.doctor_name
+            : data.selectedSlot?.doctor_id
+            ? `หมอรหัส ${data.selectedSlot.doctor_id}`
             : "ยังไม่ได้เลือกแพทย์"}
         </p>
       </div>
 
       <div className="bg-gray-50 p-4 rounded-lg">
-        <h4 className="font-semibold text-gray-800 mb-2">วัน-เวลาที่นัด</h4>
-        {formattedDate && formattedTime ? (
-          <p className="text-gray-700">{formattedDate} เวลา {formattedTime}</p>
+        <h4 className="font-semibold text-gray-800 mb-2">เวลาที่นัด</h4>
+        { formattedTime ? (
+          <p className="text-gray-700"> เวลา {formattedTime}</p>
         ) : (
           <p className="text-gray-500">ยังไม่ได้เลือกวันเวลา</p>
         )}

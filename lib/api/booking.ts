@@ -125,4 +125,12 @@ export namespace Booking {
     const res = await client.patch(`${BOOKINGS_URL}/appointment-ledger/to-completed/${appointmentId}`)
     return res.data as ApiResponse<null>
   }
+
+  // ✅ Get doctor's scheduled appointments
+export async function getDoctorAppointments(): Promise<
+  ApiResponse<{ schedules: AppointmentEntity[] }>
+> {
+  const res = await client.get(`${BOOKINGS_URL}/schedule-view/doctor`)
+  return res.data as ApiResponse<{ schedules: AppointmentEntity[] }>
+}
 }

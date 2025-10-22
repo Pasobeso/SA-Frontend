@@ -68,4 +68,9 @@ export namespace Orders {
   return res.data as ApiResponse<OrderEntity>
 }
 
+export async function getAllOrders() {
+  const res = await client.get(`${ORDERS_URL}/orders`)
+  return res.data as ApiResponse<GetOrderRes[]>
+}
+
 }

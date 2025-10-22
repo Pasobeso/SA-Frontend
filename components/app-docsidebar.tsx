@@ -34,7 +34,7 @@ export function AppSidebar() {
   const items = [
     {
       title: "นัดหมาย",
-      url: "/patient",
+      url: "/doctor",
       icon: CalendarClock,
     },
     {

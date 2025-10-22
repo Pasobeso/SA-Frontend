@@ -44,19 +44,19 @@ export function LoginForm({
           hospital_number: Number(uid),
           password,
         });
+        toast.success("เข้าสู่ระบบสำเร็จ");
+        router.push("/patient");
       } else if (loginMode == "doctor") {
         res = await Auth.loginDoctor({
           hospital_number: Number(uid),
           password,
         });
+        toast.success("เข้าสู่ระบบสำเร็จ");
+        router.push("/doctor");
       } else {
         throw new Error(`Unknown login mode: ${loginMode}`);
       }
 
-      console.log("Login successful");
-
-      toast.success("เข้าสู่ระบบสำเร็จ");
-      router.push("/");
     } catch (err) {
       if (err instanceof AxiosError) {
         const message = err.response?.data?.["message"];

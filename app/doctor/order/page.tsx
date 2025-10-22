@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -8,91 +8,128 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { Plus } from "lucide-react"
+import { AppSidebar } from "@/components/app-docsidebar"
 import { useToast } from "@/hooks/use-toast"
+import { Orders, GetOrderRes } from "@/lib/api/orders"
+import { Inventory, ProductEntity } from "@/lib/api/inventory"
 
+// ✅ Simplified types for doctor view (like patient side)
 type OrderStatus = "prepare" | "send" | "completed"
 
-interface Order {
-  id: string
-  pharmacy: string
-  deliveryMethod: string
-  deliveryDate: string
-  prepareDeadline?: string
-  items: Array<{
-    name: string
-    quantity: number
-    price: number
-  }>
-  vat: number
-  total: number
-  status: OrderStatus
-  statusText?: string
+interface DetailedOrderItem {
+  product_id: number
+  quantity: number
+  product?: ProductEntity
 }
 
-const mockOrders: Order[] = [
-  {
-    id: "25690820-666",
-    pharmacy: "ร้านโรงพยาบาล",
-    deliveryMethod: "คุณร้อยเอ๊ก พเนตร",
-    deliveryDate: "สั่งเมื่อ 12 สิงหาคม 2568 00:00 น.",
-    items: [
-      { name: "ยา KKK", quantity: 1, price: 120 },
-      { name: "ยา K", quantity: 1, price: 120 },
-    ],
-    vat: 999,
-    total: 999,
-    status: "prepare",
-    statusText: "คำสั่งซิตเรียบสินค้า",
-  },
-  {
-    id: "25690820-667",
-    pharmacy: "จัดส่งฟรีสุด",
-    deliveryMethod: "คุณร้อยเอ๊ก พเนตร",
-    deliveryDate: "สั่งเมื่อ 12 สิงหาคม 2568 00:00 น.",
-    items: [
-      { name: "ยา KKK", quantity: 1, price: 120 },
-      { name: "ยา K", quantity: 1, price: 120 },
-    ],
-    vat: 999,
-    total: 999,
-    status: "prepare",
-    statusText: "คำสั่งซิตเรียบสินค้า",
-  },
-  {
-    id: "25690820-667",
-    pharmacy: "จัดส่งฟรีสุด",
-    deliveryMethod: "ยายแพทย์เรียร้อง จรพเน",
-    deliveryDate: "สั่งเมื่อ 12 สิงหาคม 2568 00:00 น.",
-    prepareDeadline: "ยายแพทย์เรียร้อง จรพเน เมื่อ 13 สิงหาคม 2568 00:00 น.",
-    items: [
-      { name: "ยา KKK", quantity: 1, price: 120 },
-      { name: "ยา K", quantity: 1, price: 120 },
-    ],
-    vat: 999,
-    total: 999,
-    status: "send",
-  },
-  {
-    id: "25690820-666",
-    pharmacy: "ร้านโรงพยาบาล",
-    deliveryMethod: "คุณร้อยเอ๊ก พเนตร",
-    deliveryDate: "สั่งเมื่อ 12 สิงหาคม 2568 00:00 น.",
-    items: [
-      { name: "ยา KKK", quantity: 1, price: 120 },
-      { name: "ยา K", quantity: 1, price: 120 },
-    ],
-    vat: 999,
-    total: 999,
-    status: "completed",
-  },
-]
+interface DetailedOrder extends GetOrderRes {
+  order_items: DetailedOrderItem[]
+}
 
-export default function MedicineOrdersPage() {
+export default function DoctorOrdersPage() {
   const [activeTab, setActiveTab] = useState<OrderStatus>("prepare")
+  const [orders, setOrders] = useState<DetailedOrder[]>([])
+  const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
 
-  const filteredOrders = mockOrders.filter((order) => order.status === activeTab)
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const res = await Orders.getAllOrders()
+        const data = res.data || []
+
+        // ✅ Enrich each order with product info
+        const enriched: DetailedOrder[] = await Promise.all(
+          data.map(async (order) => {
+            const ids = order.order_items.map((i) => i.product_id).join(",")
+            if (!ids) return order as DetailedOrder
+
+            try {
+              const inv = await Inventory.getProducts(ids)
+              const map: Record<number, ProductEntity> = {}
+              inv.data.forEach((p) => (map[p.id] = p))
+
+              const detailedItems: DetailedOrderItem[] = order.order_items.map((item) => ({
+                product_id: item.product_id,
+                quantity: item.quantity,
+                product: map[item.product_id],
+              }))
+
+              return { ...order, order_items: detailedItems }
+            } catch {
+              return order as DetailedOrder
+            }
+          })
+        )
+
+        setOrders(enriched)
+      } catch (err) {
+        console.error("❌ Failed to fetch doctor orders:", err)
+        toast({
+          title: "โหลดคำสั่งซื้อไม่สำเร็จ",
+          description: "โปรดลองอีกครั้งภายหลัง",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchOrders()
+  }, [toast])
+
+  const mapStatus = (status: string): OrderStatus => {
+    switch (status.toUpperCase()) {
+      case "PREPARING":
+      case "WAITING_PREPARE":
+      case "REJECTED":
+        return "prepare"
+      case "SHIPPING":
+        return "send"
+      case "COMPLETED":
+        return "completed"
+      default:
+        return "prepare"
+    }
+  }
+
+  const filteredOrders = orders.filter(
+    (o) => mapStatus(o.order.status) === activeTab
+  )
+
+  const handleMarkPrepared = async (id: number) => {
+    try {
+      // await Orders.markPrepared(id)
+      toast({ title: "✅ เตรียมการสำเร็จแล้ว" })
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.order.id === id ? { ...o, order: { ...o.order, status: "shipping" } } : o
+        )
+      )
+    } catch {
+      toast({
+        title: "ไม่สามารถอัปเดตสถานะได้",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleMarkShipped = async (id: number) => {
+    try {
+      // await Orders.markShipped(id)
+      toast({ title: "✅ ส่งสินค้าแล้ว" })
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.order.id === id ? { ...o, order: { ...o.order, status: "completed" } } : o
+        )
+      )
+    } catch {
+      toast({
+        title: "ไม่สามารถอัปเดตสถานะได้",
+        variant: "destructive",
+      })
+    }
+  }
 
   return (
     <SidebarProvider>
@@ -100,107 +137,147 @@ export default function MedicineOrdersPage() {
       <SidebarInset>
         <div className="relative flex-1 p-4 md:p-8">
           <SidebarTrigger />
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-7xl px-4 py-8">
-        <h1 className="mb-8 text-4xl font-bold text-gray-900">รายการสั่งยา</h1>
+          <div className="min-h-screen bg-gray-50">
+            <div className="mx-auto max-w-7xl px-4 py-8">
+              <h1 className="mb-8 text-4xl font-bold text-gray-900">
+                คำสั่งซื้อของผู้ป่วย
+              </h1>
 
-        {/* Tabs */}
-        <div className="mb-6 flex gap-2">
-          <button
-            onClick={() => setActiveTab("prepare")}
-            className={`rounded-lg px-6 py-3 font-medium transition-colors ${
-              activeTab === "prepare" ? "bg-green-600 text-white" : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-            }`}
-          >
-            ที่ต้องเตรียมการ
-          </button>
-          <button
-            onClick={() => setActiveTab("send")}
-            className={`rounded-lg px-6 py-3 font-medium transition-colors ${
-              activeTab === "send" ? "bg-green-600 text-white" : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-            }`}
-          >
-            ที่ต้องส่ง
-          </button>
-          <button
-            onClick={() => setActiveTab("completed")}
-            className={`rounded-lg px-6 py-3 font-medium transition-colors ${
-              activeTab === "completed" ? "bg-green-600 text-white" : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-            }`}
-          >
-            สำเร็จ
-          </button>
-        </div>
-
-        {/* Order Cards */}
-        <div className="space-y-4">
-          {filteredOrders.map((order, index) => (
-            <Card key={`${order.id}-${index}`} className="bg-white p-6">
-              <div className="space-y-4">
-                {/* Order Header */}
-                <div className="space-y-1">
-                  <p className="text-sm">
-                    <span className="font-semibold">หมายเลขคำสั่งซื้อ</span> {order.id}
-                  </p>
-                  <p className="text-sm">
-                    <span className="font-semibold">รูปแบบการสั่งซื้อ</span> {order.pharmacy}
-                  </p>
-                  <p className="text-sm">
-                    <span className="font-semibold">ผู้รับ</span> {order.deliveryMethod} {order.deliveryDate}
-                  </p>
-                  {order.prepareDeadline && (
-                    <p className="text-sm">
-                      <span className="font-semibold">เตรียมการเสร็จสิ้นโดย</span> {order.prepareDeadline}
-                    </p>
-                  )}
-                </div>
-
-                {/* Order Items */}
-                <div className="space-y-2 border-t pt-4">
-                  {order.items.map((item, itemIndex) => (
-                    <div key={itemIndex} className="flex justify-between text-sm">
-                      <span>{item.name}</span>
-                      <span>
-                        {item.quantity}x {item.price} บาท
-                      </span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between text-sm">
-                    <span>VAT 7%</span>
-                    <span>{order.vat} บาท</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-2 font-semibold">
-                    <span>รวมทั้งสิ้น</span>
-                    <span>{order.total} บาท</span>
-                  </div>
-                </div>
-
-                {/* Action Area */}
-                <div className="flex items-center justify-between border-t pt-4">
-                  {order.status === "prepare" && order.statusText && (
-                    <>
-                      <p className="text-sm text-green-600">{order.statusText}</p>
-                      <Button className="bg-green-600 hover:bg-green-700">เตรียมการสำเร็จ</Button>
-                    </>
-                  )}
-                  {order.status === "send" && order.prepareDeadline && (
-                    <>
-                      <p className="text-sm text-green-600">เตรียมการเสร็จสิ้น โดย {order.prepareDeadline}</p>
-                      <Button className="bg-green-600 hover:bg-green-700">ที่ต้องเผื่นส่ง</Button>
-                    </>
-                  )}
-                  {order.status === "completed" && order.statusText && (
-                    <p className="text-sm text-blue-600">เตรียมการสำเร็จ โดยยายแพทย์เรียร้อง จรพเน</p>
-                  )}
-                </div>
+              {/* Tabs */}
+              <div className="mb-6 flex gap-2">
+                {[
+                  { key: "prepare", label: "ที่ต้องเตรียมการ" },
+                  { key: "send", label: "ที่ต้องส่ง" },
+                  { key: "completed", label: "สำเร็จ" },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key as OrderStatus)}
+                    className={`rounded-lg px-6 py-3 font-medium transition-colors ${
+                      activeTab === tab.key
+                        ? "bg-green-600 text-white"
+                        : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
-            </Card>
-          ))}
-        </div>
-      </div>
-    </div>
+
+              {/* Orders List */}
+              {loading ? (
+                <p className="text-center text-gray-500">กำลังโหลด...</p>
+              ) : filteredOrders.length === 0 ? (
+                <p className="text-center text-gray-500">
+                  ไม่มีคำสั่งซื้อในหมวดนี้
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {filteredOrders.map((o) => {
+                    const order = o.order
+
+                    // ✅ Calculate subtotal + VAT + total
+                    const subtotal = o.order_items.reduce((sum, item) => {
+                      const price = item.product?.unit_price ?? 0
+                      return sum + price * item.quantity
+                    }, 0)
+                    const vat = subtotal * 0.07
+                    const total = subtotal + vat
+
+                    return (
+                      <Card
+                        key={order.id}
+                        className="bg-white p-6 border shadow-sm"
+                      >
+                        <div className="space-y-4">
+                          {/* Header */}
+                          <div className="space-y-1">
+                            <p className="text-sm">
+                              <span className="font-semibold">
+                                หมายเลขคำสั่งซื้อ
+                              </span>{" "}
+                              {order.id}
+                            </p>
+                            <p className="text-sm">
+                              <span className="font-semibold">วันที่สั่งซื้อ</span>{" "}
+                              {new Date(order.created_at).toLocaleString("th-TH")}
+                            </p>
+                          </div>
+
+                          {/* Items */}
+                          <div className="space-y-2 border-t pt-4">
+                            {o.order_items.map((item, idx) => {
+                              const p = item.product
+                              const subtotalItem =
+                                (p?.unit_price ?? 0) * item.quantity
+                              return (
+                                <div
+                                  key={idx}
+                                  className="flex justify-between text-sm"
+                                >
+                                  <span>
+                                    {p
+                                      ? `${p.th_name} (${p.en_name})`
+                                      : `สินค้า #${item.product_id}`}
+                                  </span>
+                                  <span>
+                                    {item.quantity} ชิ้น{" "}
+                                    {p && (
+                                      <span className="text-gray-500">
+                                        ({p.unit_price} บาท/ชิ้น ={" "}
+                                        {subtotalItem.toFixed(2)} บาท)
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              )
+                            })}
+
+                            {/* VAT + total */}
+                            <div className="flex justify-between border-t pt-2 text-sm">
+                              <span>VAT (7%)</span>
+                              <span>{vat.toFixed(2)} บาท</span>
+                            </div>
+                            <div className="flex justify-between border-t pt-2 font-semibold">
+                              <span>รวมทั้งสิ้น</span>
+                              <span>{total.toFixed(2)} บาท</span>
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center justify-end border-t pt-4 gap-3">
+                            {mapStatus(order.status) === "prepare" && (
+                              <Button
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => handleMarkPrepared(order.id)}
+                              >
+                                เตรียมการสำเร็จ
+                              </Button>
+                            )}
+                            {mapStatus(order.status) === "send" && (
+                              <Button
+                                className="bg-blue-600 hover:bg-blue-700"
+                                onClick={() => handleMarkShipped(order.id)}
+                              >
+                                ส่งเรียบร้อย
+                              </Button>
+                            )}
+                            {mapStatus(order.status) === "completed" && (
+                              <p className="text-sm text-gray-600">
+                                ส่งเรียบร้อยแล้ว
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
             </div>
+          </div>
+        </div>
       </SidebarInset>
-  </SidebarProvider>
+    </SidebarProvider>
   )
 }

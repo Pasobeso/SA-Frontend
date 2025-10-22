@@ -39,7 +39,7 @@ export function AppSidebar() {
     },
     {
       title: "สั่งซื้อยา",
-      url: "/doctor/appointment",
+      url: "/patient/med",
       icon: Pill,
     },
         {
