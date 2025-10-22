@@ -113,7 +113,7 @@ export function TimeSelectionStep({ data, onUpdate, onNext, onBack }: TimeSelect
 								</div>
 								<div className="grid grid-cols-2  gap-2">
 									{availableSlots.map((slot) => {
-										const start = new Date(slot.start_time)
+										const start = new Date(slot.start_time+'Z')
 										const label = start.toLocaleDateString("th-TH", {
 											dateStyle: "long"
 										})
